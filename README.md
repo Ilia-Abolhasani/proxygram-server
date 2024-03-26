@@ -1,1 +1,1 @@
-# telegram-mtproto
+# Proxygram server
