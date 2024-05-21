@@ -272,6 +272,8 @@ class Context:
     def add_bach_ping_report(self, agent_id, reports, session=None):
         def _f(session):
             for report in reports:
+                print("start add ping report")
+                start_time = time.time()
                 report = DotDict(report)
                 self.add_ping_report(
                     agent_id,
@@ -279,6 +281,9 @@ class Context:
                     report.ping,
                     session
                 )
+                end_time = time.time()
+                elapsed_time = end_time - start_time
+                print(f"add one ping report elapsed_time: {elapsed_time}")
         return self._exec(_f, session)
 
     # speed report
