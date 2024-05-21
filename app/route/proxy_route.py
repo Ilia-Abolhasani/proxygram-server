@@ -19,3 +19,9 @@ def get_ping(agent_id):
     result = controller.get_proxies_ping(agent_id, disconnect)
     result = jsonify(result)
     return result, 200
+
+
+@blueprint.route('/delete/<int:proxy_id>', methods=['DELETE'])
+def delete_proxies(agent_id, proxy_id):
+    controller.delete_proxy(agent_id, proxy_id)
+    return jsonify(True), 204

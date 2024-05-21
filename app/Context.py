@@ -180,6 +180,17 @@ class Context:
             session.execute(text(query))
         return self._exec(_f, session)
 
+    def delete_proxy(self, proxy_id, session=None):
+        def _f(session):
+            query = f"""
+                    
+                    UPDATE proxy set deleted_at = NOW()
+                        WHERE proxy.id = {proxy_id}
+                    """
+            session.execute(text(query))
+
+        return self._exec(_f, session)
+
     def delete_dead_proxies(self, threshold, session=None):
         def _f(session):
             query = f"""

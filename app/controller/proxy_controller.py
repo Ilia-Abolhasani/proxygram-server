@@ -18,3 +18,6 @@ class ProxyController:
         for proxy in proxies:
             result.append(proxy.to_json())
         return {"result": result}
+
+    def delete_proxy(self, agent_id, proxy_id):
+        self.context.delete_proxy(proxy_id)
