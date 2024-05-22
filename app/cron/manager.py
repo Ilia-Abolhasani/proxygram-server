@@ -25,7 +25,7 @@ def start_jobs(context, telegram_api, bot_api, logger_api):
     # job test connection of proxy base on reports
     scheduler.add_job(
         lambda: job_connection_analize.start(context, logger_api),
-        trigger=CronTrigger.from_crontab('*/5 * * * *')
+        trigger=CronTrigger.from_crontab('*/6 * * * *')
     )
 
     # job test connection of proxy base on reports
@@ -37,6 +37,6 @@ def start_jobs(context, telegram_api, bot_api, logger_api):
     # job fetch new proxies from other proxy chaneels
     scheduler.add_job(
         lambda: job_fetch_new_proxies.start(context, telegram_api, logger_api),
-        trigger=CronTrigger.from_crontab('*/5 * * * *')
+        trigger=CronTrigger.from_crontab('*/11 * * * *')
     )
     scheduler.start()

@@ -7,6 +7,7 @@ from tqdm import tqdm
 def start(context, telegram_api, logger_api):
     global job_lock
     with job_lock:
+        print("job_fetch_new_proxies")
         channels = context.get_all_channel()
         for channel in tqdm(channels):
             try:

@@ -8,6 +8,7 @@ import time
 def start(context, bot_api, logger_api):
     global job_lock
     with job_lock:
+        print("job_channel_add_message")
         try:
             proxies = get_top_proxies(context, Config.message_limit_proxy)
             connect_num = context.count_connect_proxies()
