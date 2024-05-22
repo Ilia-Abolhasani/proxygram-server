@@ -202,18 +202,14 @@ class Context:
 	                            GROUP by proxy_id
 	                            HAVING COUNT(id) >= {threshold}
 	                );
-                    """
-            session.execute(text(query))
-            query = f"""
+            
                     DELETE FROM ping_report
                         WHERE
                             ping_report.proxy_id in (
                                 SELECT proxy.id FROM proxy
                                     WHERE deleted_at is not null
                             );
-                    """
-            session.execute(text(query))
-            query = f"""
+            
                     DELETE FROM speed_report
                         WHERE
                             speed_report.proxy_id in (
