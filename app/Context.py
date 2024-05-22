@@ -1,6 +1,7 @@
 import os
 import time
 import mysql.connector
+from datetime import datetime
 from sqlalchemy import create_engine, text, func, or_
 from sqlalchemy.orm import sessionmaker
 from app.util.DotDict import DotDict
@@ -193,32 +194,28 @@ class Context:
         return self._exec(_f, session)
 
     def delete_dead_proxies(self, threshold, session=None):
-        def _f(session):
-            query = f"""
-                    UPDATE proxy set deleted_at = NOW()
-                        WHERE deleted_at is null and proxy.id in (
-    	                    SELECT proxy_id FROM `ping_report`
-	                            WHERE ping = -1 and deleted_at is null
-	                            GROUP by proxy_id
-	                            HAVING COUNT(id) >= {threshold}
-	                );
-            
-                    DELETE FROM ping_report
-                        WHERE
-                            ping_report.proxy_id in (
-                                SELECT proxy.id FROM proxy
-                                    WHERE deleted_at is not null
-                            );
-            
-                    DELETE FROM speed_report
-                        WHERE
-                            speed_report.proxy_id in (
-                                SELECT proxy.id FROM proxy
-                                    WHERE deleted_at is not null
-                    );
-                """
-            session.execute(text(query))
-        return self._exec(_f, session)
+        # Get the list of proxy IDs to be deleted
+        def get_dead_proxies(session):
+            subquery_ping_report = (
+                session.query(PingReport.proxy_id)
+                .filter(PingReport.ping == -1, PingReport.deleted_at.is_(None))
+                .group_by(PingReport.proxy_id)
+                .having(func.count(PingReport.id) >= threshold)
+            )
+            return subquery_ping_report.all()
+
+        dead_proxies = self._exec(get_dead_proxies, session)
+
+        def _delete_proxy(session, proxy_id):
+            proxy = session.query(Proxy).filter(Proxy.id == proxy_id, Proxy.deleted_at.is_(None)).first()
+            if proxy:
+                proxy.deleted_at = datetime.now()
+                session.add(proxy)
+            session.query(PingReport).filter(PingReport.proxy_id == proxy_id).delete()
+            session.query(SpeedReport).filter(SpeedReport.proxy_id == proxy_id).delete()
+
+        for proxy_id, in dead_proxies:
+            self._exec(lambda session: _delete_proxy(session, proxy_id), session)            
 
     def get_all_isps(self, session=None):
         return self._exec(
