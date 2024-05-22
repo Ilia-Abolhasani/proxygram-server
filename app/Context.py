@@ -244,6 +244,19 @@ class Context:
             .all(), session)
 
     # ping report
+    def cleanup_old_ping_reports(self, session=None):
+        def _f(session):
+            proxies = session.query(PingReport.proxy_id).distinct().all()
+            for proxy in proxies:
+                proxy_id = proxy[0]
+                count = session.query(PingReport).filter_by(proxy_id=proxy_id).count()
+                if count > self.max_report_ping:
+                    excess_count = count - self.max_report_ping
+                    oldest_reports = session.query(PingReport).filter_by(proxy_id=proxy_id).order_by(PingReport.updated_at).limit(excess_count).all()
+                    for report in oldest_reports:
+                        session.delete(report)            
+        return self._exec(_f, session)
+
     def get_connected_proxise_ping_reports(self, session=None):
         return self._exec(
             lambda sess: sess.query(PingReport).filter(
@@ -270,13 +283,13 @@ class Context:
                 ping=ping
             )
             session.add(new_report)
-            count = self.get_ping_report_count(proxy_id, session)
-            if (count >= self.max_report_ping):
-                for _ in range(self.max_report_ping, count):
-                    oldest_report = session.query(PingReport).filter_by(
-                        proxy_id=proxy_id
-                    ).order_by(PingReport.updated_at).first()
-                    session.delete(oldest_report)
+            # count = self.get_ping_report_count(proxy_id, session)
+            # if (count >= self.max_report_ping):
+            #     for _ in range(self.max_report_ping, count):
+            #         oldest_report = session.query(PingReport).filter_by(
+            #             proxy_id=proxy_id
+            #         ).order_by(PingReport.updated_at).first()
+            #         session.delete(oldest_report)
 
         return self._exec(_f, session)
 
