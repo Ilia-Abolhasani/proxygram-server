@@ -175,7 +175,8 @@ class Context:
 	                	WHEN subquery.timeouts >= {self.max_timeouts} THEN 0
 	                	WHEN subquery.successful_pings >= {self.successful_pings} THEN 1
 	                	ELSE NULL
-	                END;
+	                END
+                    WHERE proxy.deleted_at IS NULL;
                 """
             session.execute(text(query))
         return self._exec(_f, session)
