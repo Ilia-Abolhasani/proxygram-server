@@ -20,4 +20,4 @@ class ProxyController:
         return {"result": result}
 
     def delete_proxy(self, agent_id, proxy_id):
-        self.context.delete_proxy(proxy_id)
+        self.context.hard_delete_proxy(proxy_id)

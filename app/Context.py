@@ -182,7 +182,7 @@ class Context:
             session.execute(text(query))
         return self._exec(_f, session)
 
-    def delete_proxy(self, proxy_id, session=None):
+    def soft_delete_proxy(self, proxy_id, session=None):
         def _f(session):
             query = f"""
                     
@@ -191,6 +191,15 @@ class Context:
                     """
             session.execute(text(query))
 
+        return self._exec(_f, session)
+
+    def hard_delete_proxy(self, proxy_id, session=None):
+        def _f(session):
+            proxy = session.query(Proxy).filter(Proxy.id == proxy_id).one_or_none()
+            if proxy:
+                session.delete(proxy)                
+            else:                
+                print(f"Proxy with id {proxy_id} not found.")
         return self._exec(_f, session)
 
     def delete_dead_proxies(self, threshold, session=None):
