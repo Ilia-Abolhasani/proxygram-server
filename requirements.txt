@@ -9,4 +9,4 @@ pandas==1.5.3
 convertdate==2.4.0
 tqdm==4.65.0
 datetime
-git+https://github.com/Ilia-Abolhasani/python-telegram
+proxies-tg-wrapper==1.0.5

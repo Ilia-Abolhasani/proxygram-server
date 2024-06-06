@@ -1,7 +1,7 @@
 import sys
 import logging
 from flask import Flask
-from telegram.telegram_api import Telegram_API
+from proxies_tg_wrapper.api_wrapper import Telegram_API
 from app.cron.manager import start_jobs
 from app.Context import Context
 from app.middleware.request_handler import request_handler_middleware
@@ -15,17 +15,17 @@ def setup_logging(level=logging.INFO):
     root.setLevel(level)
     ch = logging.StreamHandler(sys.stdout)
     ch.setLevel(logging.DEBUG)
-    formatter = logging.Formatter(
-        '%(asctime)s [%(levelname)s] %(name)s: %(message)s')
+    formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
     ch.setFormatter(formatter)
     root.addHandler(ch)
 
 
 setup_logging(level=logging.ERROR)
 
-logging.basicConfig(level=logging.ERROR,
-                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger('Uncaught')
+logging.basicConfig(
+    level=logging.ERROR, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger("Uncaught")
 
 
 def custom_excepthook(exctype, value, traceback):
@@ -46,7 +46,7 @@ telegram_api = Telegram_API(
     Config.telegram_phone,
     Config.database_encryption_key,
     Config.tdlib_directory,
-    Config.tdlib_lib_path
+    Config.tdlib_lib_path,
 )
 telegram_api.remove_all_proxies()
 bot_api = BotAPI(Config.bot_api_key, Config.bot_chat_id)
