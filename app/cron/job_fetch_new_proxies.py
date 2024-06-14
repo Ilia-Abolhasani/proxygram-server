@@ -47,4 +47,4 @@ def start(context, telegram_api, logger_api):
                     error, f"Job fetch new proxy erro at channel_id {channel.id}."
                 )
             finally:
-                time.sleep(0.3)
+                time.sleep(0.05)
