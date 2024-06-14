@@ -1,6 +1,7 @@
 import traceback
 from pytgbot import Bot
 import logging
+
 logging.basicConfig(level=logging.DEBUG)
 
 
@@ -10,9 +11,11 @@ class BotAPI:
         self.chat = bot_chat_id
 
     def send(self, text):
+        if len(text) > 4000:
+            text = text[:4000]
         result = self.bot.send_message(self.chat, text)
         return result
-    
+
     def announce(self, error, extra_message=None):
         traceback_str = traceback.format_exc()
         error_message = str(error)
@@ -28,7 +31,8 @@ class BotAPI:
 
     def edit_message_text(self, text, message_id, parse_mode="HTML"):
         result = self.bot.edit_message_text(
-            text=text, chat_id=self.chat, message_id=message_id, parse_mode=parse_mode)
+            text=text, chat_id=self.chat, message_id=message_id, parse_mode=parse_mode
+        )
         return result
 
     def delete_message(self, message_id):
@@ -36,6 +40,5 @@ class BotAPI:
         return result
 
     def pin_chat_message(self, message_id, disable_notification):
-        result = self.bot.pin_chat_message(
-            self.chat, message_id, disable_notification)
+        result = self.bot.pin_chat_message(self.chat, message_id, disable_notification)
         return result
