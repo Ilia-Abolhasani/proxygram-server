@@ -96,7 +96,7 @@ def get_top_proxies(context, limit):
     proxies = proxies.sort_values(by="score", ascending=False)
     # select random from top 20
     proxies = proxies.iloc[:20, :]
-    proxies = proxies.sample(n=limit)
+    proxies = proxies.sample(n=min(proxies.shape[0], limit))
     proxies = proxies.sort_values(by="score", ascending=False)
 
     results = []

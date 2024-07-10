@@ -10,6 +10,7 @@ import app.cron.job_cleanup_reports as job_cleanup_reports
 def start_jobs(context, telegram_api, bot_api, logger_api):
     scheduler = BackgroundScheduler({"apscheduler.job_defaults.max_instances": 5})
     job_connection_analize.start(context, logger_api)
+    job_channel_edit_message.start(context, bot_api, logger_api)
     # job add message to channel
     scheduler.add_job(
         lambda: job_channel_add_message.start(context, bot_api, logger_api),
