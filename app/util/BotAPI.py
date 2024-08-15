@@ -1,5 +1,6 @@
 import traceback
 from pytgbot import Bot
+from pytgbot.api_types.sendable import files
 import logging
 
 logging.basicConfig(level=logging.DEBUG)
@@ -24,6 +25,15 @@ class BotAPI:
         message = f"{error_message}\n\n{traceback_str}"
         print(message)
         self.send(message)
+
+    def send_document(self, file_path, file_name, caption):
+        with open(file_path, "rb") as file:
+            blob_data = file.read()
+            document = files.InputFileFromBlob(blob_data, file_name)
+            result = self.bot.send_document(
+                self.chat, document=document, caption=caption
+            )
+        return result
 
     def send_message(self, text, parse_mode="HTML"):
         result = self.bot.send_message(self.chat, text, parse_mode)
