@@ -13,7 +13,8 @@ def start_jobs(context, telegram_api, bot_api, logger_api):
     # job_channel_add_message.start(context, bot_api, logger_api)
     # job_add_csv_report.start(context, bot_api, logger_api)
     # job_connection_analize.start(context, logger_api)
-    # job_channel_edit_message.start(context, bot_api, logger_api)
+    # job_channel_add_message.start(context, bot_api, logger_api)
+    job_channel_edit_message.start(context, bot_api, logger_api)
 
     # scheduler.add_job(
     #     lambda: job_add_csv_report.start(context, bot_api, logger_api),
