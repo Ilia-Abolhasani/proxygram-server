@@ -12,7 +12,7 @@ def start_jobs(context, telegram_api, bot_api, logger_api):
     scheduler = BackgroundScheduler({"apscheduler.job_defaults.max_instances": 5})
     # job_channel_add_message.start(context, bot_api, logger_api)
     # job_add_csv_report.start(context, bot_api, logger_api)
-    # job_connection_analize.start(context, logger_api)
+    job_connection_analize.start(context, logger_api)
     # job_channel_add_message.start(context, bot_api, logger_api)
     job_channel_edit_message.start(context, bot_api, logger_api)
 
