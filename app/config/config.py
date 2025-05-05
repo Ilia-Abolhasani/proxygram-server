@@ -1,5 +1,6 @@
 import os
 from dotenv import load_dotenv
+
 load_dotenv()
 
 
@@ -31,7 +32,7 @@ class Config:
     max_report_speed = 10
     max_timeouts = 5
     successful_pings = 5
-    
+
     # proxie selection parameters
     message_limit_proxy = 5
     max_ping_value = 10000
@@ -39,3 +40,7 @@ class Config:
     contribute_history = 5
     ping_score_weight = 0.6
     speed_score_weight = 0.4
+
+    # dead proxies
+    dead_proxies_threshold_number = 10
+    dead_proxies_threshold_ping = 250

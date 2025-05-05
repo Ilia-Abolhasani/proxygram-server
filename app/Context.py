@@ -222,12 +222,15 @@ class Context:
 
         return self._exec(_f, session)
 
-    def delete_dead_proxies(self, threshold, session=None):
+    def delete_dead_proxies(self, threshold, ping_limit, session=None):
         # Get the list of proxy IDs to be deleted
         def get_dead_proxies(session):
             subquery_ping_report = (
                 session.query(PingReport.proxy_id)
-                .filter(PingReport.ping == -1, PingReport.deleted_at.is_(None))
+                .filter(
+                    PingReport.deleted_at.is_(None),
+                    or_(PingReport.ping == -1, PingReport.ping > ping_limit),
+                )
                 .group_by(PingReport.proxy_id)
                 .having(func.count(PingReport.id) >= threshold)
             )
