@@ -23,7 +23,7 @@ def start_jobs(context, telegram_api, bot_api, logger_api):
     # job add message to channel
     scheduler.add_job(
         lambda: job_channel_add_message.start(context, bot_api, logger_api),
-        trigger=CronTrigger.from_crontab("0 */12 * * *"),
+        trigger=CronTrigger.from_crontab("0 */1 * * *"),
     )
 
     # job edit last message of channel
