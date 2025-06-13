@@ -43,4 +43,4 @@ class Config:
 
     # dead proxies
     dead_proxies_threshold_number = 10
-    dead_proxies_threshold_ping = 250
+    dead_proxies_threshold_ping = 2500
