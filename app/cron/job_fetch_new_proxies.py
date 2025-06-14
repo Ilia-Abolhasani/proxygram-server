@@ -23,7 +23,8 @@ def start(context, telegram_api, logger_api):
                     else:
                         raise Exception("private channel without chat_id!")
                 if channel.is_public:
-                    telegram_api.search_public_chat(channel.username)
+                    pass
+                    # telegram_api.search_public_chat(channel.username)
                 messages, last_message_id = telegram_api.channel_history(
                     int(channel.chat_id), 500, channel.last_id
                 )
@@ -47,4 +48,4 @@ def start(context, telegram_api, logger_api):
                     error, f"Job fetch new proxy erro at channel_id {channel.id}."
                 )
             finally:
-                time.sleep(0.3)
+                time.sleep(0.1)
