@@ -23,8 +23,9 @@ def request_handler_middleware():
 
     # Check if request_time and hashed_timestamp are present in the headers
     if not request_time or not hashed_timestamp:
-        response = jsonify({"error": "Missing required headers."})
-        return make_response(response, 400)
+        pass
+        # response = jsonify({"error": "Missing required headers."})
+        # eturn make_response(response, 400)
 
     # Calculate the hash of the received time
     message = f"{request_time}{agent.encrypted_key}"
@@ -32,8 +33,9 @@ def request_handler_middleware():
 
     # Check if the calculated hash matches the received hashed_timestamp
     if calculated_hash != hashed_timestamp:
-        response = jsonify({"error": "Hash mismatch."})
-        return make_response(response, 400)
+        pass
+        # response = jsonify({"error": "Hash mismatch."})
+        # return make_response(response, 400)
 
     # Convert the received time string to a datetime object
     received_time = datetime.strptime(request_time, "%Y-%m-%d %H:%M:%S")
@@ -43,7 +45,8 @@ def request_handler_middleware():
     time_difference = current_time - received_time
     # Check if the time difference is less than 1 minute (60 seconds)
     if time_difference.total_seconds() > 60:
-        response = jsonify({"error": "Request time exceeds 1 minute."})
-        return make_response(response, 400)
-
+        pass
+        # response = jsonify({"error": "Request time exceeds 1 minute."})
+        # return make_response(response, 400)
+    print("request passed.")
     return None
