@@ -154,7 +154,7 @@ class Context:
             return self._exec(
                 lambda sess: sess.query(Proxy)
                 .filter(Proxy.connect == 0, Proxy.deleted_at == None)
-                .limit(50)
+                .limit(100)
                 .all(),
                 session,
             )
@@ -165,7 +165,7 @@ class Context:
                     or_(Proxy.connect.is_(None), Proxy.connect == 1),
                     Proxy.deleted_at == None,
                 )
-                .limit(50)
+                .limit(100)
                 .all(),
                 session,
             )
