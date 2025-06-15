@@ -18,7 +18,6 @@ def request_handler_middleware():
     agent = context.get_agent(agent_id)
     if not agent:
         abort(403)
-    return None  # todo
     request_time = request.headers.get("X-Request-Time")
     hashed_timestamp = request.headers.get("X-Hashed-Timestamp")
 
