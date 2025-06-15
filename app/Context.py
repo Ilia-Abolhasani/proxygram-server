@@ -207,12 +207,18 @@ class Context:
 
     def soft_delete_proxy(self, proxy_id, session=None):
         def _f(session):
-            query = f"""
-                    
-                    UPDATE proxy set deleted_at = NOW()
-                        WHERE proxy.id = {proxy_id}
-                    """
-            session.execute(text(query))
+            proxy = session.query(Proxy).filter(Proxy.id == proxy_id).one_or_none()
+            if proxy:
+                proxy.deleted_at = datetime.now()
+                session.add(proxy)
+                session.query(PingReport).filter(
+                    PingReport.proxy_id == proxy_id
+                ).delete()
+                session.query(SpeedReport).filter(
+                    SpeedReport.proxy_id == proxy_id
+                ).delete()
+            else:
+                print(f"Proxy with id {proxy_id} not found.")
 
         return self._exec(_f, session)
 
