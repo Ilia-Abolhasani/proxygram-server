@@ -167,7 +167,7 @@ class Context:
                     Proxy.deleted_at == None,
                 )
                 .order_by(func.random())  # <- random order
-                .limit(100)
+                .limit(1000)
                 .all(),
                 session,
             )
