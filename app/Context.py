@@ -176,6 +176,8 @@ class Context:
         return self._exec(
             lambda sess: sess.query(Proxy)
             .filter(Proxy.connect == 1, Proxy.deleted_at == None)
+            .order_by(func.random())  # <- random order
+            .limit(20)
             .all(),
             session,
         )
