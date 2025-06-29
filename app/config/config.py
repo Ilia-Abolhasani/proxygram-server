@@ -30,11 +30,11 @@ class Config:
 
     max_report_ping = 30
     max_report_speed = 10
-    max_timeouts = 10
+    max_timeouts = 5
     successful_pings = 5
 
     # proxie selection parameters
-    message_limit_proxy = 20
+    message_limit_proxy = 10
     max_ping_value = 10000
     exponential_decay = 0.9
     contribute_history = 5
