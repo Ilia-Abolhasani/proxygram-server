@@ -28,6 +28,9 @@ def start(context, telegram_api, logger_api):
                 messages, last_message_id = telegram_api.channel_history(
                     int(channel.chat_id), 500, channel.last_id
                 )
+                res = telegram_api.view_messages(
+                    int(channel.chat_id), [last_message_id]
+                )
                 proxy_linkes = []
                 # get messages
                 for message in messages:
