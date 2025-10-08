@@ -40,6 +40,8 @@ def start(context, telegram_api, logger_api):
                 proxies = []
                 for link in proxy_linkes:
                     server, port, secret = parse_proxy_link(link)
+                    if port < 1 and port > 65535:
+                        continue
                     if len(server) > 255 or len(secret) > 255:
                         continue
                     proxies.append(
@@ -51,4 +53,4 @@ def start(context, telegram_api, logger_api):
                     error, f"Job fetch new proxy erro at channel_id {channel.id}."
                 )
             finally:
-                time.sleep(0.1)
+                time.sleep(0.5)
