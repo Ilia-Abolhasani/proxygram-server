@@ -3,6 +3,7 @@ from app.util.DotDict import DotDict
 from app.cron import job_lock
 from tqdm import tqdm
 import time
+import random
 
 
 def start(context, telegram_api, logger_api):
@@ -10,7 +11,8 @@ def start(context, telegram_api, logger_api):
     with job_lock:
         print("job_fetch_new_proxies")
         channels = context.get_all_channel()
-        for channel in tqdm(channels):
+        random_channels = random.sample(channels, 15)
+        for channel in tqdm(random_channels):
             try:
                 if not channel.chat_id:
                     if channel.is_public:
@@ -31,6 +33,8 @@ def start(context, telegram_api, logger_api):
                 res = telegram_api.view_messages(
                     int(channel.chat_id), [last_message_id]
                 )
+                if res.error:
+                    print(res.error_info)
                 proxy_linkes = []
                 # get messages
                 for message in messages:
@@ -53,4 +57,4 @@ def start(context, telegram_api, logger_api):
                     error, f"Job fetch new proxy erro at channel_id {channel.id}."
                 )
             finally:
-                time.sleep(0.5)
+                time.sleep(0)
