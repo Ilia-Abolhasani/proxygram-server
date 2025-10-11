@@ -11,7 +11,7 @@ def start(context, telegram_api, logger_api):
     with job_lock:
         print("job_fetch_new_proxies")
         channels = context.get_all_channel()
-        random_channels = random.sample(channels, 15)
+        random_channels = random.sample(channels, 10)
         for channel in tqdm(random_channels):
             try:
                 if not channel.chat_id:
