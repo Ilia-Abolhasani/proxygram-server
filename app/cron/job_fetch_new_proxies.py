@@ -30,6 +30,10 @@ def start(context, telegram_api, logger_api):
                 messages, last_message_id = telegram_api.channel_history(
                     int(channel.chat_id), 500, channel.last_id
                 )
+                if channel.is_public:
+                    print(channel.username, len(messages), last_message_id)
+                else:
+                    print(channel.name, len(messages), last_message_id)
                 res = telegram_api.view_messages(
                     int(channel.chat_id), [last_message_id]
                 )
