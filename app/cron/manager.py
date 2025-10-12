@@ -9,7 +9,7 @@ import app.cron.job_add_csv_report as job_add_csv_report
 
 
 def start_jobs(context, telegram_api, bot_api, logger_api):
-    scheduler = BackgroundScheduler({"apscheduler.job_defaults.max_instances": 5})
+    scheduler = BackgroundScheduler({"apscheduler.job_defaults.max_instances": 6})
     job_fetch_new_proxies.start(context, telegram_api, logger_api)
     job_connection_analize.start(context, logger_api)
     job_channel_edit_message.start(context, bot_api, logger_api)
