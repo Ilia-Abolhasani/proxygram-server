@@ -11,7 +11,8 @@ def start(context, telegram_api, logger_api):
     with job_lock:
         print("job_fetch_new_proxies")
         channels = context.get_all_channel()
-        random_channels = random.sample(channels, 30)
+        sample_size = min(30, len(channels))
+        random_channels = random.sample(channels, sample_size)
         for channel in tqdm(random_channels):
             try:
                 if not channel.chat_id:
@@ -48,7 +49,7 @@ def start(context, telegram_api, logger_api):
                 proxies = []
                 for link in proxy_linkes:
                     server, port, secret = parse_proxy_link(link)
-                    if port < 1 and port > 65535:
+                    if port < 1 or port > 65535:
                         continue
                     if len(server) > 255 or len(secret) > 255:
                         continue
