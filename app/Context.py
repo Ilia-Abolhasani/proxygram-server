@@ -106,9 +106,9 @@ class Context:
         def _f(session):
             for proxy in proxies:
                 self.add_proxy(proxy.server, proxy.port, proxy.secret, session)
-            session.add(channel)
             channel.last_id = last_message_id
             channel.updated_at = datetime.now(timezone.utc)
+            session.add(channel)
 
         return self._exec(_f, session)
 
