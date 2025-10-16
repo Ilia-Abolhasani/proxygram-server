@@ -81,11 +81,18 @@ class Context:
             raise error
 
     # channel
-    def get_all_channel(self, session=None):
-        return self._exec(
-            lambda sess: sess.query(Channel).filter(Channel.deleted_at == None).all(),
-            session,
-        )
+    def get_all_channel(self, limit=None, session=None):
+        def query_func(sess):
+            q = (
+                sess.query(Channel)
+                .filter(Channel.deleted_at == None)
+                .order_by(Channel.updated_at.desc())
+            )
+            if limit is not None:
+                q = q.limit(limit)
+            return q.all()
+
+        return self._exec(query_func, session)
 
     def count_channels(self, session=None):
         return self._exec(
