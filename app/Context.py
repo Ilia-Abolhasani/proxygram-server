@@ -6,7 +6,7 @@ from sqlalchemy import create_engine, text, func, or_
 from sqlalchemy.orm import sessionmaker
 from app.util.DotDict import DotDict
 from app.config.config import Config
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 # models
 from app.model.base import Base
@@ -108,6 +108,7 @@ class Context:
                 self.add_proxy(proxy.server, proxy.port, proxy.secret, session)
             session.add(channel)
             channel.last_id = last_message_id
+            channel.updated_at = datetime.now(timezone.utc)
 
         return self._exec(_f, session)
 
