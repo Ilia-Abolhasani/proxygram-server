@@ -86,7 +86,7 @@ class Context:
             channels = (
                 sess.query(Channel)
                 .filter(Channel.deleted_at == None)
-                .order_by(Channel.updated_at.desc())
+                .order_by(Channel.updated_at.asc())
                 .all()
             )
 
