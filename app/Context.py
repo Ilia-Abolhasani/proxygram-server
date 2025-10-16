@@ -83,14 +83,16 @@ class Context:
     # channel
     def get_all_channel(self, limit=None, session=None):
         def query_func(sess):
-            q = (
+            channels = (
                 sess.query(Channel)
                 .filter(Channel.deleted_at == None)
                 .order_by(Channel.updated_at.desc())
+                .all()
             )
+
             if limit is not None:
-                q = q.limit(limit)
-            return q.all()
+                channels = channels[:limit]
+            return channels
 
         return self._exec(query_func, session)
 
