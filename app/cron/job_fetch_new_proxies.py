@@ -55,6 +55,7 @@ def start(context, telegram_api, logger_api):
                         DotDict({"server": server, "port": port, "secret": secret})
                     )
                 context.add_proxies_of_channel(proxies, channel, last_message_id)
+                print("*********")
             except Exception as error:
                 logger_api.announce(
                     error, f"Job fetch new proxy erro at channel_id {channel.id}."
