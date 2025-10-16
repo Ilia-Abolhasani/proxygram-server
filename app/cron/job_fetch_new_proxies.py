@@ -28,6 +28,7 @@ def start(context, telegram_api, logger_api):
                 messages, last_message_id = telegram_api.channel_history(
                     int(channel.chat_id), 500, channel.last_id
                 )
+                print(channel.updated_at)
                 if channel.is_public:
                     print(channel.username, len(messages), last_message_id)
                 else:
@@ -55,7 +56,6 @@ def start(context, telegram_api, logger_api):
                         DotDict({"server": server, "port": port, "secret": secret})
                     )
                 context.add_proxies_of_channel(proxies, channel, last_message_id)
-                print("*********")
             except Exception as error:
                 logger_api.announce(
                     error, f"Job fetch new proxy erro at channel_id {channel.id}."
