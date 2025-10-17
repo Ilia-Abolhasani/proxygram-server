@@ -3,9 +3,20 @@ from app.util.DotDict import DotDict
 from app.cron import job_lock
 from tqdm import tqdm
 import time
+from proxies_tg_wrapper.api_wrapper import Telegram_API
+from app.config.config import Config
 
 
-def fetch(context, telegram_api, logger_api):
+def fetch(context, logger_api):
+    telegram_api = Telegram_API(
+        Config.telegram_app_id,
+        Config.telegram_app_hash,
+        Config.telegram_phone,
+        Config.database_encryption_key,
+        Config.tdlib_directory,
+        Config.tdlib_lib_path,
+    )
+    telegram_api.remove_all_proxies()
     output = []
     channels = context.get_all_channel(limit=15)
     for channel in tqdm(channels):
@@ -72,8 +83,8 @@ def fetch(context, telegram_api, logger_api):
     return output
 
 
-def start(context, telegram_api, logger_api):
+def start(context, logger_api):
     global job_lock
     with job_lock:
         print("job_fetch_new_proxies")
-        fetch(context, telegram_api, logger_api)
+        fetch(context, logger_api)
