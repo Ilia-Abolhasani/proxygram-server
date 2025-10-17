@@ -56,6 +56,11 @@ if __name__ == "__main__":
     bot_api = BotAPI(Config.bot_api_key, Config.bot_chat_id)
     logger_api = BotAPI(Config.logger_bot_api_key, Config.logger_bot_chat_id)
 
+    app.config["context"] = context
+    app.config["telegram_api"] = telegram_api
+    app.config["bot_api"] = bot_api
+    app.config["logger_api"] = logger_api
+
     start_jobs(context, telegram_api, bot_api, logger_api)
 
     app.run(debug=False, host="0.0.0.0", port=Config.server_port)

@@ -2,6 +2,8 @@ import hashlib
 from flask import abort, request, jsonify, make_response
 from app.Context import Context
 from datetime import datetime, timezone
+import re
+
 
 context = Context()
 
@@ -12,6 +14,11 @@ def request_handler_middleware():
         return None
     if request.endpoint == "route.test_route":
         return None
+    _path = request.full_path.rstrip("?")
+    if re.match(r"^/api/job(?:/.*)?$", _path):
+        print("Skipping security check for job route:", request.path)
+        return None
+
     if not request.view_args:
         abort(404)
     agent_id = request.view_args.get("agent_id")
