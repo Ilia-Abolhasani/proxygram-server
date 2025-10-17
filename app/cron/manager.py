@@ -1,11 +1,29 @@
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
+from app.config.config import Config
+import requests
 import app.cron.job_channel_add_message as job_channel_add_message
 import app.cron.job_channel_edit_message as job_channel_edit_message
 import app.cron.job_connection_analize as job_connection_analize
-import app.cron.job_fetch_new_proxies as job_fetch_new_proxies
+
+# import app.cron.job_fetch_new_proxies as job_fetch_new_proxies
 import app.cron.job_cleanup_reports as job_cleanup_reports
 import app.cron.job_add_csv_report as job_add_csv_report
+
+
+def call_fetch_new_proxies():
+    try:
+        url = f"http://127.0.0.1:{Config.server_port}/api/job/fetch_new_proxy"
+        print(f"[Scheduler] Calling {url}")
+        res = requests.get(url, timeout=60)
+        if res.status_code == 200:
+            print(f"[Scheduler] ✅ fetch_new_proxy executed successfully")
+            if "message" in res:
+                print(res["message"])
+        else:
+            print(f"[Scheduler] ⚠️ fetch_new_proxy failed: {res.status_code} {res.text}")
+    except Exception as e:
+        print(f"[Scheduler] ❌ Error calling fetch_new_proxy: {e}")
 
 
 def start_jobs(context, telegram_api, bot_api, logger_api):
@@ -47,7 +65,7 @@ def start_jobs(context, telegram_api, bot_api, logger_api):
 
     # job fetch new proxies from other proxy chaneels
     scheduler.add_job(
-        lambda: job_fetch_new_proxies.start(context, telegram_api, logger_api),
+        lambda: call_fetch_new_proxies(),
         trigger=CronTrigger.from_crontab("*/1 * * * *"),
     )
     scheduler.start()
