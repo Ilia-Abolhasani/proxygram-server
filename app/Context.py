@@ -165,7 +165,7 @@ class Context:
                 lambda sess: sess.query(Proxy)
                 .filter(Proxy.connect == 0, Proxy.deleted_at == None)
                 .order_by(func.random())  # <- random order
-                .limit(50)
+                .limit(500)
                 .all(),
                 session,
             )
@@ -177,7 +177,7 @@ class Context:
                     Proxy.deleted_at == None,
                 )
                 .order_by(func.random())  # <- random order
-                .limit(50)
+                .limit(500)
                 .all(),
                 session,
             )

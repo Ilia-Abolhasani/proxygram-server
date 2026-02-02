@@ -42,5 +42,5 @@ class Config:
     speed_score_weight = 0.4
 
     # dead proxies
-    dead_proxies_threshold_number = 15
+    dead_proxies_threshold_number = 30
     dead_proxies_threshold_ping = 10000
