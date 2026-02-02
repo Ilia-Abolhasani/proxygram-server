@@ -28,10 +28,10 @@ class Config:
     session_retry_max = 5
     session_retry_interval = 3
 
-    max_report_ping = 30
+    max_report_ping = 20
     max_report_speed = 10
-    max_timeouts = 10
-    successful_pings = 5
+    max_timeouts = 30
+    successful_pings = 1
 
     # proxie selection parameters
     message_limit_proxy = 10
@@ -43,4 +43,4 @@ class Config:
 
     # dead proxies
     dead_proxies_threshold_number = 15
-    dead_proxies_threshold_ping = 2500
+    dead_proxies_threshold_ping = 10000
