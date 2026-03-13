@@ -190,7 +190,7 @@ class Context:
         def _f(session):
             query = f"""
                     UPDATE proxy
-	                JOIN (
+	                LEFT JOIN (
 	                	SELECT proxy_id, sum(timeouts) as timeouts, sum(successful_pings) as successful_pings
 	                		from (
                                 SELECT
@@ -202,7 +202,7 @@ class Context:
                      ) AS subquery ON proxy.id = subquery.proxy_id
 	                SET proxy.connect = CASE
 	                	WHEN subquery.timeouts >= {self.max_timeouts} THEN 0
-	                	WHEN subquery.successful_pings >= {self.successful_pings} THEN 1
+	                	WHEN COALESCE(subquery.successful_pings, 0) >= {self.successful_pings} THEN 1
 	                	ELSE NULL
 	                END
                     WHERE proxy.deleted_at IS NULL;
