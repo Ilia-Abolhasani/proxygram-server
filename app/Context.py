@@ -161,38 +161,29 @@ class Context:
 
         return self._exec(_f, session)
 
-    def get_proxy_ping(self, agent_id, disconnect, session=None):
-        if disconnect:
-            return self._exec(
-                lambda sess: sess.query(Proxy)
-                .filter(Proxy.connect == 0, Proxy.deleted_at == None)
-                .order_by(func.random())  # <- random order
-                .limit(5000)
-                .all(),
-                session,
-            )
-        else:
-            return self._exec(
-                lambda sess: sess.query(Proxy)
-                .filter(
+    def get_proxy_ping(self, agent_id, disconnect, country=None, session=None):
+        def _f(sess):
+            if disconnect:
+                q = sess.query(Proxy).filter(Proxy.connect == 0, Proxy.deleted_at == None)
+            else:
+                q = sess.query(Proxy).filter(
                     or_(Proxy.connect.is_(None), Proxy.connect == 1),
                     Proxy.deleted_at == None,
                 )
-                .order_by(func.random())  # <- random order
-                .limit(5000)
-                .all(),
-                session,
-            )
+            if country:
+                q = q.filter(Proxy.country == country)
+            return q.order_by(func.random()).limit(5000).all()
 
-    def get_proxy_speed(self, agent_id, session=None):
-        return self._exec(
-            lambda sess: sess.query(Proxy)
-            .filter(Proxy.connect == 1, Proxy.deleted_at == None)
-            .order_by(func.random())  # <- random order
-            .limit(50)
-            .all(),
-            session,
-        )
+        return self._exec(_f, session)
+
+    def get_proxy_speed(self, agent_id, country=None, session=None):
+        def _f(sess):
+            q = sess.query(Proxy).filter(Proxy.connect == 1, Proxy.deleted_at == None)
+            if country:
+                q = q.filter(Proxy.country == country)
+            return q.order_by(func.random()).limit(50).all()
+
+        return self._exec(_f, session)
 
     def proxies_connection_update(self, session=None):
         def _f(session):

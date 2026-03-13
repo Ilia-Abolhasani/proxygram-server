@@ -7,7 +7,8 @@ controller = ProxyController()
 
 @blueprint.route("/speed", methods=["GET"])
 def get_speed(agent_id):
-    result = controller.get_proxies_speed(agent_id)
+    country = request.args.get("country")
+    result = controller.get_proxies_speed(agent_id, country)
     result = jsonify(result)
     return result, 200
 
@@ -16,7 +17,8 @@ def get_speed(agent_id):
 def get_ping(agent_id):
     disconnect = request.args.get("disconnect")
     disconnect = disconnect.lower() == "true"
-    result = controller.get_proxies_ping(agent_id, disconnect)
+    country = request.args.get("country")
+    result = controller.get_proxies_ping(agent_id, disconnect, country)
     result = jsonify(result)
     return result, 200
 
