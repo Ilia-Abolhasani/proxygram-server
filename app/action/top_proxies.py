@@ -17,10 +17,10 @@ def get_top_proxies(context, limit, country=None):
     proxies = context.get_connected_proxise(country=country)
     proxies = pd.DataFrame(
         [
-            (proxy.id, proxy.server, proxy.port, proxy.secret, proxy.ip)
+            (proxy.id, proxy.server, proxy.port, proxy.secret, proxy.ip, proxy.country)
             for proxy in proxies
         ],
-        columns=["id", "server", "port", "secret", "ip"],
+        columns=["id", "server", "port", "secret", "ip", "country"],
     )
     ping_reports = context.get_connected_proxise_ping_reports()
     ping_reports = pd.DataFrame(
@@ -110,6 +110,7 @@ def get_top_proxies(context, limit, country=None):
                     "server": row["server"],
                     "port": row["port"],
                     "secret": row["secret"],
+                    "country": row["country"],
                     "average_speed": row["average_speed"],
                     "average_ping": row["average_ping"],
                 }
