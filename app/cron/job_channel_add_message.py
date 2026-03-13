@@ -27,14 +27,12 @@ def start(context, bot_api, logger_api):
             proxies_ir = get_top_proxies(
                 context, Config.message_limit_proxy, country="IR"
             )
-            print(f"proxies_ir count: {len(proxies_ir)}")
-            if proxies_ir:
-                message_ir = create_message_iran(
-                    proxies_ir, connect_num, total, channels_num
-                )
-                result_ir = bot_api.send_message(message_ir)
-                context.add_or_update_setting(
-                    "last_sent_message_id_ir", result_ir.message_id
-                )
+            message_ir = create_message_iran(
+                proxies_ir, connect_num, total, channels_num
+            )
+            result_ir = bot_api.send_message(message_ir)
+            context.add_or_update_setting(
+                "last_sent_message_id_ir", result_ir.message_id
+            )
         except Exception as error:
             logger_api.announce(error, "Add message to channel job.")

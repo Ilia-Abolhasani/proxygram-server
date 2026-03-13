@@ -29,11 +29,10 @@ def start(context, bot_api, logger_api):
             if setting_ir:
                 message_id_ir = int(setting_ir.value)
                 proxies_ir = get_top_proxies(context, Config.message_limit_proxy, country="IR")
-                if proxies_ir:
-                    message_ir = create_message_iran(proxies_ir, connect_num, total, channels_num)
-                    try:
-                        bot_api.edit_message_text(message_ir, message_id_ir)
-                    except Exception:
-                        pass
+                message_ir = create_message_iran(proxies_ir, connect_num, total, channels_num)
+                try:
+                    bot_api.edit_message_text(message_ir, message_id_ir)
+                except Exception:
+                    pass
         except Exception as error:
             logger_api.announce(error, "Edit message to channel job.")
