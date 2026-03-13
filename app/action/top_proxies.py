@@ -3,7 +3,7 @@ from app.config.config import Config
 from app.util.DotDict import DotDict
 
 
-def get_top_proxies(context, limit):
+def get_top_proxies(context, limit, country=None):
     # fetch data from DB
     isps = context.get_all_isps()
     isps = pd.DataFrame([(isp.id, isp.name) for isp in isps], columns=["id", "name"])
@@ -14,7 +14,7 @@ def get_top_proxies(context, limit):
         columns=["id", "isp_id", "name"],
     )
 
-    proxies = context.get_connected_proxise()
+    proxies = context.get_connected_proxise(country=country)
     proxies = pd.DataFrame(
         [
             (proxy.id, proxy.server, proxy.port, proxy.secret, proxy.ip)

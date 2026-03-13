@@ -130,13 +130,14 @@ class Context:
             lambda sess: sess.query(func.count(Proxy.id)).scalar(), session
         )
 
-    def get_connected_proxise(self, session=None):
-        return self._exec(
-            lambda sess: sess.query(Proxy)
-            .filter(Proxy.connect == 1, Proxy.deleted_at == None)
-            .all(),
-            session,
-        )
+    def get_connected_proxise(self, country=None, session=None):
+        def _f(sess):
+            q = sess.query(Proxy).filter(Proxy.connect == 1, Proxy.deleted_at == None)
+            if country:
+                q = q.filter(Proxy.country == country)
+            return q.all()
+
+        return self._exec(_f, session)
 
     def get_proxy(self, server, port, secret, session=None):
         # include deleted_at
