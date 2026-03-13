@@ -17,7 +17,7 @@ def call_fetch_new_proxies():
         print(f"[Scheduler] Calling {url}")
         res = requests.get(url, timeout=60)
         if res.status_code == 200:
-            print(f"[Scheduler] ✅ fetch_new_proxy executed successfully")
+            print(f"[Scheduler] ✅ fet  ch_new_proxy executed successfully")
             if "message" in res:
                 print(res["message"])
         else:
@@ -30,7 +30,7 @@ def start_jobs(context, bot_api, logger_api):
     scheduler = BackgroundScheduler({"apscheduler.job_defaults.max_instances": 6})
     job_fetch_new_proxies.start(context, logger_api)
     job_connection_analize.start(context, logger_api)
-    job_channel_edit_message.start(context, bot_api, logger_api)
+    # job_channel_edit_message.start(context, bot_api, logger_api)
     # job_add_csv_report.start(context, bot_api, logger_api)
     # job_channel_add_message.start(context, bot_api, logger_api)
 
@@ -46,10 +46,10 @@ def start_jobs(context, bot_api, logger_api):
     # )
 
     # job edit last message of channel
-    scheduler.add_job(
-        lambda: job_channel_edit_message.start(context, bot_api, logger_api),
-        trigger=CronTrigger.from_crontab("*/5 * * * *"),
-    )
+    # scheduler.add_job(
+    #     lambda: job_channel_edit_message.start(context, bot_api, logger_api),
+    #     trigger=CronTrigger.from_crontab("*/5 * * * *"),
+    # )
 
     # job test connection of proxy base on reports
     scheduler.add_job(

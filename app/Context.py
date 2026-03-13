@@ -6,6 +6,7 @@ from sqlalchemy import create_engine, text, func, or_
 from sqlalchemy.orm import sessionmaker
 from app.util.DotDict import DotDict
 from app.config.config import Config
+from app.util.GeoIP import get_country
 from datetime import datetime, timedelta, timezone
 
 # models
@@ -150,7 +151,8 @@ class Context:
         def _f(session):
             proxy = self.get_proxy(server, port, secret, session)
             if not proxy:
-                new_proxy = Proxy(server=server, port=port, secret=secret)
+                country = get_country(server)
+                new_proxy = Proxy(server=server, port=port, secret=secret, country=country)
                 session.add(new_proxy)
             elif proxy.deleted_at:
                 wait_time = datetime.utcnow() - timedelta(days=3)

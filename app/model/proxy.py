@@ -12,6 +12,7 @@ class Proxy(Base):
     secret = Column(String(255), nullable=False)
     ip = Column(Integer, nullable=True)
     connect = Column(Boolean, nullable=True)
+    country = Column(String(2), nullable=True)
 
     # foreign key 1 to many
     ping_reports = relationship(
