@@ -135,7 +135,13 @@ class Context:
             q = sess.query(Proxy).filter(Proxy.connect == 1, Proxy.deleted_at == None)
             if country:
                 q = q.filter(Proxy.country == country)
-            return q.all()
+            results = q.all()
+            if not results and Config.fallback_null_connect:
+                q = sess.query(Proxy).filter(Proxy.connect.is_(None), Proxy.deleted_at == None)
+                if country:
+                    q = q.filter(Proxy.country == country)
+                results = q.all()
+            return results
 
         return self._exec(_f, session)
 
@@ -153,7 +159,9 @@ class Context:
             proxy = self.get_proxy(server, port, secret, session)
             if not proxy:
                 country = get_country(server)
-                new_proxy = Proxy(server=server, port=port, secret=secret, country=country)
+                new_proxy = Proxy(
+                    server=server, port=port, secret=secret, country=country
+                )
                 session.add(new_proxy)
             elif proxy.deleted_at:
                 wait_time = datetime.utcnow() - timedelta(days=3)
@@ -165,7 +173,9 @@ class Context:
     def get_proxy_ping(self, agent_id, disconnect, country=None, session=None):
         def _f(sess):
             if disconnect:
-                q = sess.query(Proxy).filter(Proxy.connect == 0, Proxy.deleted_at == None)
+                q = sess.query(Proxy).filter(
+                    Proxy.connect == 0, Proxy.deleted_at == None
+                )
             else:
                 q = sess.query(Proxy).filter(
                     or_(Proxy.connect.is_(None), Proxy.connect == 1),
@@ -190,7 +200,7 @@ class Context:
         def _f(session):
             query = f"""
                     UPDATE proxy
-	                LEFT JOIN (
+	                JOIN (
 	                	SELECT proxy_id, sum(timeouts) as timeouts, sum(successful_pings) as successful_pings
 	                		from (
                                 SELECT
@@ -202,7 +212,7 @@ class Context:
                      ) AS subquery ON proxy.id = subquery.proxy_id
 	                SET proxy.connect = CASE
 	                	WHEN subquery.timeouts >= {self.max_timeouts} THEN 0
-	                	WHEN COALESCE(subquery.successful_pings, 0) >= {self.successful_pings} THEN 1
+	                	WHEN subquery.successful_pings >= {self.successful_pings} THEN 1
 	                	ELSE NULL
 	                END
                     WHERE proxy.deleted_at IS NULL;

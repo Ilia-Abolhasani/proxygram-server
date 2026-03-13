@@ -31,7 +31,7 @@ class Config:
     max_report_ping = 20
     max_report_speed = 10
     max_timeouts = 30
-    successful_pings = -1
+    successful_pings = 1
 
     # proxie selection parameters
     message_limit_proxy = 10
@@ -40,6 +40,9 @@ class Config:
     contribute_history = 5
     ping_score_weight = 0.6
     speed_score_weight = 0.4
+
+    # fallback to null-connect proxies when no connected proxy exists
+    fallback_null_connect = True
 
     # dead proxies
     dead_proxies_threshold_number = 30
