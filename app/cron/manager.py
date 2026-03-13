@@ -40,10 +40,10 @@ def start_jobs(context, bot_api, logger_api):
     # )
 
     # job add message to channel
-    scheduler.add_job(
-        lambda: job_channel_add_message.start(context, bot_api, logger_api),
-        trigger=CronTrigger.from_crontab("0 */4 * * *"),
-    )
+    # scheduler.add_job(
+    #     lambda: job_channel_add_message.start(context, bot_api, logger_api),
+    #     trigger=CronTrigger.from_crontab("0 */4 * * *"),
+    # )
 
     # job edit last message of channel
     scheduler.add_job(
