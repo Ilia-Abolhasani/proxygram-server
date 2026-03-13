@@ -24,7 +24,7 @@ def start(context, bot_api, logger_api):
 
         # پیام سرورهای ایران
         try:
-            proxies_ir = get_top_proxies(context, Config.message_limit_proxy, country="IR")
+            proxies_ir = get_top_proxies(context, Config.message_limit_proxy_ir, country="IR")
             message_ir = create_message_iran(proxies_ir, connect_num, total, channels_num)
             result_ir = bot_api.send_message(message_ir)
             context.add_or_update_setting("last_sent_message_id_ir", result_ir.message_id)

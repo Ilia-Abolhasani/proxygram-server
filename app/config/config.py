@@ -35,6 +35,7 @@ class Config:
 
     # proxie selection parameters
     message_limit_proxy = 10
+    message_limit_proxy_ir = 10
     max_ping_value = 10000
     exponential_decay = 0.9
     contribute_history = 5
