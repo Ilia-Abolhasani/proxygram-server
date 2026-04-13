@@ -25,14 +25,14 @@ def start(context, bot_api, logger_api):
                     pass
 
             # ویرایش پیام سرورهای ایران
-            setting_ir = context.get_setting("last_sent_message_id_ir")
-            if setting_ir:
-                message_id_ir = int(setting_ir.value)
-                proxies_ir = get_top_proxies(context, Config.message_limit_proxy_ir, country="IR")
-                message_ir = create_message_iran(proxies_ir, connect_num, total, channels_num)
-                try:
-                    bot_api.edit_message_text(message_ir, message_id_ir)
-                except Exception:
-                    pass
+            # setting_ir = context.get_setting("last_sent_message_id_ir")
+            # if setting_ir:
+            #     message_id_ir = int(setting_ir.value)
+            #     proxies_ir = get_top_proxies(context, Config.message_limit_proxy_ir, country="IR")
+            #     message_ir = create_message_iran(proxies_ir, connect_num, total, channels_num)
+            #     try:
+            #         bot_api.edit_message_text(message_ir, message_id_ir)
+            #     except Exception:
+            #         pass
         except Exception as error:
             logger_api.announce(error, "Edit message to channel job.")

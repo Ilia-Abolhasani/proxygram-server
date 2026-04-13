@@ -14,6 +14,14 @@ def start(context, bot_api, logger_api):
 
         # پیام عادی (همه پروکسی‌ها)
         try:
+            # حذف پیام قبلی
+            prev_setting = context.get_setting("last_sent_message_id")
+            if prev_setting:
+                try:
+                    bot_api.delete_message(int(prev_setting.value))
+                except Exception:
+                    pass
+
             proxies = get_top_proxies(context, Config.message_limit_proxy)
             message = create_message(proxies, connect_num, total, channels_num)
             result = bot_api.send_message(message)
@@ -23,11 +31,11 @@ def start(context, bot_api, logger_api):
             logger_api.announce(error, "Add message to channel job (normal).")
 
         # پیام سرورهای ایران
-        try:
-            proxies_ir = get_top_proxies(context, Config.message_limit_proxy_ir, country="IR")
-            message_ir = create_message_iran(proxies_ir, connect_num, total, channels_num)
-            result_ir = bot_api.send_message(message_ir)
-            context.add_or_update_setting("last_sent_message_id_ir", result_ir.message_id)
-            print("message 2 (IR) sent")
-        except Exception as error:
-            logger_api.announce(error, "Add message to channel job (IR).")
+        # try:
+        #     proxies_ir = get_top_proxies(context, Config.message_limit_proxy_ir, country="IR")
+        #     message_ir = create_message_iran(proxies_ir, connect_num, total, channels_num)
+        #     result_ir = bot_api.send_message(message_ir)
+        #     context.add_or_update_setting("last_sent_message_id_ir", result_ir.message_id)
+        #     print("message 2 (IR) sent")
+        # except Exception as error:
+        #     logger_api.announce(error, "Add message to channel job (IR).")
