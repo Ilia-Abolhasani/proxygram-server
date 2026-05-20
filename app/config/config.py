@@ -30,11 +30,11 @@ class Config:
 
     max_report_ping = 20
     max_report_speed = 10
-    max_timeouts = 30
-    successful_pings = 1
+    max_timeouts = 15
+    successful_pings = 5
 
     # proxie selection parameters
-    message_limit_proxy = 5
+    message_limit_proxy = 10
     message_limit_proxy_ir = 20
     max_ping_value = 10000
     exponential_decay = 0.9
@@ -46,5 +46,5 @@ class Config:
     fallback_null_connect = True
 
     # dead proxies
-    dead_proxies_threshold_number = 30
+    dead_proxies_threshold_number = 15
     dead_proxies_threshold_ping = 10000
