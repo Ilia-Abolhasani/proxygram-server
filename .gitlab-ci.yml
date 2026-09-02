@@ -9,8 +9,10 @@ deploy_prod:
   stage: prod
   tags: ["telegram"]  
   script:
+    # Guard the rm: an empty BASE_PATH would expand to "rm -rf /*" under sudo.
+    - test -n "$BASE_PATH" || (echo "BASE_PATH is empty, refusing to deploy" && exit 1)
     - sudo systemctl stop mtproxyserver.service
-    - sudo rm -rf $BASE_PATH/*
+    - sudo rm -rf "$BASE_PATH"/*
     - mkdir -p $BASE_PATH
     - sudo bash -c "date > $BASE_PATH/date.txt"
     - sudo cp -a ./* $BASE_PATH/

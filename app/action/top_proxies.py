@@ -3,6 +3,29 @@ from app.config.config import Config
 from app.util.DotDict import DotDict
 
 
+def _decayed_average(reports, value_column):
+    """proxy_id -> exponentially decayed average of its newest reports.
+
+    Same weighting as before (newest report weight 1, then decay**n, normalised
+    by the sum of the weights) but computed in one pass instead of scanning the
+    whole report table once per proxy.
+    """
+    if reports.empty:
+        return {}
+    df = reports.sort_values(
+        by=["proxy_id", "updated_at"], ascending=[True, False]
+    )
+    df = df.groupby("proxy_id", sort=False).head(Config.contribute_history).copy()
+    df["weight"] = Config.exponential_decay ** df.groupby(
+        "proxy_id", sort=False
+    ).cumcount()
+    df["weighted"] = df[value_column] * df["weight"]
+    totals = df.groupby("proxy_id", sort=False).agg(
+        weighted=("weighted", "sum"), weight=("weight", "sum")
+    )
+    return (totals["weighted"] / totals["weight"]).to_dict()
+
+
 def get_top_proxies(context, limit, country=None):
     # fetch data from DB
     isps = context.get_all_isps()
@@ -17,10 +40,10 @@ def get_top_proxies(context, limit, country=None):
     proxies = context.get_connected_proxise(country=country)
     proxies = pd.DataFrame(
         [
-            (proxy.id, proxy.server, proxy.port, proxy.secret, proxy.ip, proxy.country)
+            (proxy.id, proxy.server, proxy.port, proxy.secret, proxy.country)
             for proxy in proxies
         ],
-        columns=["id", "server", "port", "secret", "ip", "country"],
+        columns=["id", "server", "port", "secret", "country"],
     )
     ping_reports = context.get_connected_proxise_ping_reports()
     ping_reports = pd.DataFrame(
@@ -54,39 +77,23 @@ def get_top_proxies(context, limit, country=None):
     max_ping = Config.max_ping_value
     ping_reports["ping"] = ping_reports["ping"].replace(-1, max_ping)
 
-    def average_ping(proxy_id):
-        temp = ping_reports[ping_reports["proxy_id"] == proxy_id]
-        temp = temp.sort_values(by="updated_at", ascending=False)
-        if temp.shape[0] == 0:
-            return max_ping
-        temp = temp.iloc[: Config.contribute_history, :]
-        temp = temp.reset_index(drop=True)
-        decay_series = Config.exponential_decay**temp.index  # todo
-        average_ping = (temp["ping"] * decay_series).sum()
-        average_ping /= sum(decay_series)
-        return average_ping
-
-    proxies["average_ping"] = proxies["id"].apply(lambda id: average_ping(id))
-
-    def average_speed(proxy_id):
-        temp = speed_reports[speed_reports["proxy_id"] == proxy_id]
-        temp = temp.sort_values(by="updated_at", ascending=False)
-        if temp.shape[0] == 0:
-            return 0
-        temp = temp.iloc[: Config.contribute_history, :]
-        temp = temp.reset_index(drop=True)
-        decay_series = Config.exponential_decay**temp.index  # todo
-        average_speed = (temp["speed"] * decay_series).sum()
-        average_speed /= sum(decay_series)
-        return average_speed
-
-    proxies["average_speed"] = proxies["id"].apply(lambda id: average_speed(id))
+    proxies["average_ping"] = (
+        proxies["id"].map(_decayed_average(ping_reports, "ping")).fillna(max_ping)
+    )
+    proxies["average_speed"] = (
+        proxies["id"].map(_decayed_average(speed_reports, "speed")).fillna(0.0)
+    )
 
     # scale and convert to score
     proxies["ping_score"] = (max_ping - proxies["average_ping"]) / max_ping
 
+    # With no speed reports at all max_speed is 0, and dividing by it turned
+    # every score into NaN -- which silently destroyed the whole ranking.
     max_speed = proxies["average_speed"].max()
-    proxies["speed_score"] = proxies["average_speed"] / max_speed
+    if pd.isna(max_speed) or max_speed <= 0:
+        proxies["speed_score"] = 0.0
+    else:
+        proxies["speed_score"] = proxies["average_speed"] / max_speed
 
     proxies["score"] = (
         proxies["ping_score"] * Config.ping_score_weight

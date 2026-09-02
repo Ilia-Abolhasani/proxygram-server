@@ -4,11 +4,9 @@ from convertdate import persian
 
 
 def padding(text, num):
-    text = str(text)
-    l = len(text)
-    for i in range(l, num):
-        text = " " + text + " "
-    return text
+    # The old loop added two spaces per iteration but counted one, so it
+    # produced roughly 2*num - len(text) characters instead of num.
+    return str(text).center(num)
 
 
 def persian_numeral(input):

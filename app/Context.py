@@ -130,7 +130,7 @@ class Context:
             for proxy in proxies:
                 self.add_proxy(proxy.server, proxy.port, proxy.secret, session)
             channel.last_id = last_message_id
-            channel.updated_at = datetime.now(timezone.utc)
+            channel.updated_at = datetime.now()
             session.add(channel)
 
         return self._exec(_f, session)
@@ -184,7 +184,9 @@ class Context:
                 )
                 session.add(new_proxy)
             elif proxy.deleted_at:
-                wait_time = datetime.utcnow() - timedelta(days=3)
+                # local time, to match func.now() defaults and the deleted_at
+                # values written by soft_delete_proxy
+                wait_time = datetime.now() - timedelta(days=3)
                 if proxy.deleted_at < wait_time:
                     proxy.deleted_at = None
 
@@ -314,20 +316,11 @@ class Context:
 
         dead_proxies = self._exec(get_dead_proxies, session)
 
-        def _delete_proxy(session, proxy_id):
-            proxy = (
-                session.query(Proxy)
-                .filter(Proxy.id == proxy_id, Proxy.deleted_at.is_(None))
-                .first()
-            )
-            if proxy:
-                proxy.deleted_at = datetime.now()
-                session.add(proxy)
-            session.query(PingReport).filter(PingReport.proxy_id == proxy_id).delete()
-            session.query(SpeedReport).filter(SpeedReport.proxy_id == proxy_id).delete()
-
-        for (proxy_id,) in dead_proxies:
-            self._exec(lambda session: _delete_proxy(session, proxy_id), session)
+        # One session and four statements per proxy used to be opened here;
+        # soft_delete_proxies does the same work in bulk.
+        return self.soft_delete_proxies(
+            [proxy_id for (proxy_id,) in dead_proxies], session
+        )
 
     def get_all_isps(self, session=None):
         return self._exec(
@@ -352,22 +345,28 @@ class Context:
 
     # ping report
     def cleanup_old_ping_reports(self, session=None):
+        """Keep only the newest max_report_ping reports per proxy.
+
+        This used to run a count, a select and a row-by-row delete for every
+        proxy in one transaction -- thousands of round trips holding a single
+        connection and its locks. One window-function delete does the same job.
+        """
+
         def _f(session):
-            proxies = session.query(PingReport.proxy_id).distinct().all()
-            for proxy in proxies:
-                proxy_id = proxy[0]
-                count = session.query(PingReport).filter_by(proxy_id=proxy_id).count()
-                if count > self.max_report_ping:
-                    excess_count = count - self.max_report_ping
-                    oldest_reports = (
-                        session.query(PingReport)
-                        .filter_by(proxy_id=proxy_id)
-                        .order_by(PingReport.updated_at)
-                        .limit(excess_count)
-                        .all()
-                    )
-                    for report in oldest_reports:
-                        session.delete(report)
+            query = """
+                DELETE report FROM ping_report AS report
+                JOIN (
+                    SELECT id, ROW_NUMBER() OVER (
+                        PARTITION BY proxy_id ORDER BY updated_at DESC, id DESC
+                    ) AS rn
+                    FROM ping_report
+                ) AS ranked ON ranked.id = report.id
+                WHERE ranked.rn > :max_reports
+            """
+            result = session.execute(
+                text(query), {"max_reports": self.max_report_ping}
+            )
+            return result.rowcount
 
         return self._exec(_f, session)
 
@@ -476,6 +475,6 @@ class Context:
                 setting.value = value
             else:
                 new_setting = Setting(key=key, value=value)
-                self.session.add(new_setting)
+                session.add(new_setting)
 
         return self._exec(_f, session)

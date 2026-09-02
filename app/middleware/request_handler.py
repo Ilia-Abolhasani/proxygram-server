@@ -1,4 +1,5 @@
 import hashlib
+import hmac
 from flask import abort, request, jsonify, make_response
 from app.Context import Context
 from datetime import datetime, timezone
@@ -16,6 +17,11 @@ def request_handler_middleware():
         return None
     _path = request.full_path.rstrip("?")
     if re.match(r"^/api/job(?:/.*)?$", _path):
+        # Job routes carry no agent credentials, so they are only reachable
+        # from the machine itself. Flask listens on 0.0.0.0 and each job spins
+        # up TDLib work, so leaving them open to the network is a free DoS.
+        if request.remote_addr not in ("127.0.0.1", "::1"):
+            abort(403)
         print("Skipping security check for job route:", request.path)
         return None
 
@@ -38,7 +44,7 @@ def request_handler_middleware():
     calculated_hash = hashlib.sha256(message.encode()).hexdigest()
 
     # Check if the calculated hash matches the received hashed_timestamp
-    if calculated_hash != hashed_timestamp:
+    if not hmac.compare_digest(calculated_hash, hashed_timestamp):
         response = jsonify({"error": "Hash mismatch."})
         return make_response(response, 400)
 
@@ -48,8 +54,9 @@ def request_handler_middleware():
     # Calculate the time difference
     current_time = datetime.now(timezone.utc)
     time_difference = current_time - received_time
-    # Check if the time difference is less than 1 minute (60 seconds)
-    if time_difference.total_seconds() > 60:
+    # abs(): a timestamp in the future gives a negative difference and used to
+    # slip through the check entirely.
+    if abs(time_difference.total_seconds()) > 60:
         response = jsonify({"error": "Request time exceeds 1 minute."})
         return make_response(response, 400)
     print("request passed.")

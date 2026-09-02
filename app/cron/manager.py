@@ -1,7 +1,6 @@
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from app.config.config import Config
-import requests
 import app.cron.job_channel_add_message as job_channel_add_message
 import app.cron.job_channel_edit_message as job_channel_edit_message
 import app.cron.job_connection_analize as job_connection_analize
@@ -11,19 +10,15 @@ import app.cron.job_cleanup_reports as job_cleanup_reports
 import app.cron.job_add_csv_report as job_add_csv_report
 
 
-def call_fetch_new_proxies():
+def call_fetch_new_proxies(context, logger_api):
+    # Called directly instead of looping back through HTTP: the round trip
+    # bought nothing and forced /api/job/* to stay unauthenticated.
     try:
-        url = f"http://127.0.0.1:{Config.server_port}/api/job/fetch_new_proxy"
-        print(f"[Scheduler] Calling {url}")
-        res = requests.get(url, timeout=60)
-        if res.status_code == 200:
-            print(f"[Scheduler] ✅ fet  ch_new_proxy executed successfully")
-            if "message" in res:
-                print(res["message"])
-        else:
-            print(f"[Scheduler] ⚠️ fetch_new_proxy failed: {res.status_code} {res.text}")
+        print("[Scheduler] running fetch_new_proxy")
+        job_fetch_new_proxies.start(context, logger_api)
+        print("[Scheduler] fetch_new_proxy executed successfully")
     except Exception as e:
-        print(f"[Scheduler] ❌ Error calling fetch_new_proxy: {e}")
+        print(f"[Scheduler] Error running fetch_new_proxy: {e}")
 
 
 def start_jobs(context, bot_api, logger_api):
@@ -65,7 +60,7 @@ def start_jobs(context, bot_api, logger_api):
 
     # job fetch new proxies from other proxy chaneels
     scheduler.add_job(
-        lambda: call_fetch_new_proxies(),
+        lambda: call_fetch_new_proxies(context, logger_api),
         trigger=CronTrigger.from_crontab("*/5 * * * *"),
     )
     scheduler.start()

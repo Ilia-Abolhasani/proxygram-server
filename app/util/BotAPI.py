@@ -6,15 +6,30 @@ import logging
 logging.basicConfig(level=logging.DEBUG)
 
 
+# Telegram rejects messages over 4096 characters.
+MAX_MESSAGE_LENGTH = 4000
+
+
+def _fit(text):
+    """Trim to Telegram's limit on a blank-line boundary.
+
+    Channel messages are HTML, so cutting mid-tag would break parse_mode;
+    the proxy blocks are separated by blank lines, which are safe to cut on.
+    """
+    if len(text) <= MAX_MESSAGE_LENGTH:
+        return text
+    clipped = text[:MAX_MESSAGE_LENGTH]
+    boundary = clipped.rfind("\n\n")
+    return clipped[:boundary] if boundary > 0 else clipped
+
+
 class BotAPI:
     def __init__(self, bot_api_key, bot_chat_id):
         self.bot = Bot(bot_api_key)
         self.chat = bot_chat_id
 
     def send(self, text):
-        if len(text) > 4000:
-            text = text[:4000]
-        result = self.bot.send_message(self.chat, text)
+        result = self.bot.send_message(self.chat, _fit(text))
         return result
 
     def announce(self, error, extra_message=None):
@@ -36,12 +51,15 @@ class BotAPI:
         return result
 
     def send_message(self, text, parse_mode="HTML"):
-        result = self.bot.send_message(self.chat, text, parse_mode)
+        result = self.bot.send_message(self.chat, _fit(text), parse_mode)
         return result
 
     def edit_message_text(self, text, message_id, parse_mode="HTML"):
         result = self.bot.edit_message_text(
-            text=text, chat_id=self.chat, message_id=message_id, parse_mode=parse_mode
+            text=_fit(text),
+            chat_id=self.chat,
+            message_id=message_id,
+            parse_mode=parse_mode,
         )
         return result
 

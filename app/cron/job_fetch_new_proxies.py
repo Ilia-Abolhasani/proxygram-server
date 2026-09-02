@@ -3,19 +3,49 @@ from app.util.DotDict import DotDict
 from app.cron import job_lock
 from tqdm import tqdm
 import time
+import threading
 from proxies_tg_wrapper.api_wrapper import Telegram_API
 from app.config.config import Config
 
+# This job runs every few minutes. Building a Telegram_API per call meant a new
+# TDLib client and a full login each time, never stopped -- and every one of
+# them opened the same tdlib_directory, which two concurrent clients can
+# corrupt. One client is created lazily and reused for the life of the process.
+_telegram_api = None
+_telegram_api_lock = threading.Lock()
+
+
+def _get_telegram_api():
+    global _telegram_api
+    if _telegram_api is not None:
+        return _telegram_api
+    with _telegram_api_lock:
+        if _telegram_api is None:
+            _telegram_api = Telegram_API(
+                Config.telegram_app_id,
+                Config.telegram_app_hash,
+                Config.telegram_phone,
+                Config.database_encryption_key,
+                Config.tdlib_directory,
+                Config.tdlib_lib_path,
+            )
+    return _telegram_api
+
+
+def stop_telegram_api():
+    """Shut the shared TDLib client down (used when the process exits)."""
+    global _telegram_api
+    with _telegram_api_lock:
+        if _telegram_api is not None:
+            try:
+                _telegram_api.stop()
+            except Exception as error:
+                print(f"failed to stop TDLib client: {error}")
+            _telegram_api = None
+
 
 def fetch(context, logger_api):
-    telegram_api = Telegram_API(
-        Config.telegram_app_id,
-        Config.telegram_app_hash,
-        Config.telegram_phone,
-        Config.database_encryption_key,
-        Config.tdlib_directory,
-        Config.tdlib_lib_path,
-    )
+    telegram_api = _get_telegram_api()
     telegram_api.remove_all_proxies()
     output = []
     channels = context.get_all_channel(limit=15)

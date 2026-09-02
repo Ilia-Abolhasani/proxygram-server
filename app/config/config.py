@@ -38,6 +38,10 @@ class Config:
     # ids per statement when soft-deleting a batch of proxies
     soft_delete_chunk_size = 500
 
+    # seconds between Telegram error announcements, so a burst of failing
+    # requests cannot flood the logger bot
+    error_announce_min_interval = int(os.getenv("error_announce_min_interval", "30"))
+
     max_report_ping = 20
     max_report_speed = 10
     max_timeouts = 15

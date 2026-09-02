@@ -29,10 +29,10 @@ def create_csv_report(context, path, limit):
     proxies = context.get_connected_proxise()
     proxies = pd.DataFrame(
         [
-            (proxy.id, proxy.server, proxy.port, proxy.secret, proxy.ip)
+            (proxy.id, proxy.server, proxy.port, proxy.secret)
             for proxy in proxies
         ],
-        columns=["id", "server", "port", "secret", "ip"],
+        columns=["id", "server", "port", "secret"],
     )
     ping_reports = context.get_connected_proxise_ping_reports()
     ping_reports = pd.DataFrame(
@@ -50,35 +50,25 @@ def create_csv_report(context, path, limit):
     )
 
     max_ping = Config.max_ping_value
+    ping_reports["ping"] = ping_reports["ping"].replace(-1, max_ping)
 
-    def ping_average(proxy_id):
-        ping_df = ping_reports.copy()
-        ping_df["ping"] = ping_df["ping"].replace(-1, max_ping)
-        temp = ping_df[ping_df["proxy_id"] == proxy_id]
-        if temp.shape[0] == 0:
-            return "-"
-        return round(temp["ping"].mean())
+    # One groupby instead of copying and rescanning the whole frame per proxy.
+    ping_stats = (
+        ping_reports.groupby("proxy_id")["ping"].agg(["mean", "min", "max"])
+        if not ping_reports.empty
+        else None
+    )
 
-    proxies[titles.ping_avg] = proxies["id"].apply(lambda id: ping_average(id))
+    def _ping_stat(stat):
+        if ping_stats is None:
+            return proxies["id"].map(lambda _: "-")
+        return proxies["id"].map(ping_stats[stat]).fillna("-")
 
-    def ping_min(proxy_id):
-        ping_df = ping_reports.copy()
-        ping_df["ping"] = ping_df["ping"].replace(-1, max_ping)
-        temp = ping_df[ping_df["proxy_id"] == proxy_id]
-        if temp.shape[0] == 0:
-            return "-"
-        return temp["ping"].min()
-
-    proxies[titles.ping_min] = proxies["id"].apply(lambda id: ping_min(id))
-
-    def ping_max(proxy_id):
-        ping_df = ping_reports.copy()
-        temp = ping_df[ping_df["proxy_id"] == proxy_id]
-        if temp.shape[0] == 0:
-            return "-"
-        return temp["ping"].max()
-
-    proxies[titles.ping_max] = proxies["id"].apply(lambda id: ping_max(id))
+    proxies[titles.ping_avg] = _ping_stat("mean").map(
+        lambda v: round(v) if v != "-" else v
+    )
+    proxies[titles.ping_min] = _ping_stat("min")
+    proxies[titles.ping_max] = _ping_stat("max")
 
     speed_reports = context.get_connected_proxise_speed_reports()
     speed_reports = pd.DataFrame(
@@ -95,43 +85,38 @@ def create_csv_report(context, path, limit):
         columns=["id", "agent_id", "proxy_id", "speed", "updated_at"],
     )
 
-    def speed_average(proxy_id):
-        temp = speed_reports[speed_reports["proxy_id"] == proxy_id]
-        temp = temp[temp["speed"] != 0]
-        if temp.shape[0] == 0:
-            return "-"
-        return round(temp["speed"].mean())
+    # speed == 0 means the download timed out, not a real measurement
+    measured_speed = speed_reports[speed_reports["speed"] != 0]
+    speed_stats = (
+        measured_speed.groupby("proxy_id")["speed"].agg(["mean", "min", "max"])
+        if not measured_speed.empty
+        else None
+    )
 
-    proxies[titles.speed_avg] = proxies["id"].apply(lambda id: speed_average(id))
+    def _speed_stat(stat):
+        if speed_stats is None:
+            return proxies["id"].map(lambda _: "-")
+        return proxies["id"].map(speed_stats[stat]).fillna("-")
 
-    def speed_min(proxy_id):
-        temp = speed_reports[speed_reports["proxy_id"] == proxy_id]
-        temp = temp[temp["speed"] != 0]
-        if temp.shape[0] == 0:
-            return "-"
-        return temp["speed"].min()
-
-    proxies[titles.speed_min] = proxies["id"].apply(lambda id: speed_min(id))
-
-    def speed_max(proxy_id):
-        temp = speed_reports[speed_reports["proxy_id"] == proxy_id]
-        temp = temp[temp["speed"] != 0]
-        if temp.shape[0] == 0:
-            return "-"
-        return temp["speed"].max()
-
-    proxies[titles.speed_max] = proxies["id"].apply(lambda id: speed_max(id))
+    proxies[titles.speed_avg] = _speed_stat("mean").map(
+        lambda v: round(v) if v != "-" else v
+    )
+    proxies[titles.speed_min] = _speed_stat("min")
+    proxies[titles.speed_max] = _speed_stat("max")
 
     def score(row):
+        # Sorted descending, so higher must mean better. Speed already is;
+        # ping is not, so it has to be inverted -- returning ping/1000 put the
+        # slowest proxies at the top of the file.
         if row[titles.speed_max] != "-":
             return row[titles.speed_max]
-        if row[titles.ping_max] != "-":
-            return row[titles.ping_max] / 1000
+        if row[titles.ping_avg] != "-":
+            return (max_ping - row[titles.ping_avg]) / max_ping
         return 0
 
     proxies["score"] = proxies.apply(lambda row: score(row), axis=1)
     proxies = proxies.sort_values(by="score", ascending=False)
-    del proxies["id"], proxies["ip"], proxies["score"]
+    del proxies["id"], proxies["score"]
 
     def create_url(row):
         return f"https://t.me/proxy?server={row['server']}&port={row['port']}&secret={row['secret']}"
