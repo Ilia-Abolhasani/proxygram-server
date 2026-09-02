@@ -1,5 +1,6 @@
 import os
 import time
+import threading
 import mysql.connector
 from datetime import datetime
 from sqlalchemy import create_engine, text, func, or_
@@ -20,6 +21,41 @@ from app.model.ping_report import PingReport
 from app.model.setting import Setting
 from collections.abc import Iterable
 
+# One engine (and therefore one connection pool) per process. Every Context()
+# used to build its own engine, so the middleware and each controller held a
+# separate pool and a single request borrowed connections from two of them.
+_engine = None
+_session_factory = None
+_engine_lock = threading.Lock()
+
+
+def _get_engine():
+    global _engine, _session_factory
+    if _engine is not None:
+        return _engine
+    with _engine_lock:
+        if _engine is None:
+            db_url = (
+                f"mysql+mysqlconnector://{Config.database_user}:{Config.database_pass}"
+                f"@{Config.database_host}:{Config.database_port}/{Config.database_name}"
+            )
+            engine = create_engine(
+                db_url,
+                isolation_level="AUTOCOMMIT",
+                pool_size=Config.db_pool_size,
+                max_overflow=Config.db_max_overflow,
+                pool_timeout=Config.db_pool_timeout,
+                pool_recycle=Config.db_pool_recycle,
+                pool_pre_ping=True,
+            )
+            Base.metadata.create_all(engine)
+            # Callers use the returned rows after _exec has closed the
+            # session (middleware reads agent.encrypted_key, controllers call
+            # to_json()), so loaded values must survive the commit.
+            _session_factory = sessionmaker(bind=engine, expire_on_commit=False)
+            _engine = engine
+    return _engine
+
 
 class Context:
     def __init__(self):
@@ -29,57 +65,41 @@ class Context:
         self.max_timeouts = Config.max_timeouts
         self.successful_pings = Config.successful_pings
         #
-        db_name = Config.database_name
-        db_user = Config.database_user
-        db_pass = Config.database_pass
-        db_host = Config.database_host
-        db_port = Config.database_port
-        db_url = (
-            f"mysql+mysqlconnector://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}"
-        )
-        self.engine = create_engine(db_url, isolation_level="AUTOCOMMIT")
-        Base.metadata.create_all(self.engine)
+        self.engine = _get_engine()
 
     def _session(self):
-        Session = sessionmaker(bind=self.engine)
-        return Session()
+        _get_engine()
+        return _session_factory()
 
     def _exec(self, query, session=None):
-        new_session = None
-        retry_attempt = 0
-        error = None
-        while retry_attempt < Config.session_retry_max:
-            try:
-                if session:
-                    if not session.is_active:
-                        session.begin()
-                    result = query(session)
-                    return result
-                else:
-                    new_session = self._session()
-                    if not new_session.is_active:
-                        with new_session.begin() as transaction:
-                            result = query(new_session)
-                    else:
-                        result = query(new_session)
+        # A caller-supplied session is owned by that caller: it opened the
+        # transaction and it is responsible for commit/rollback/close.
+        if session is not None:
+            return query(session)
 
-                    if new_session.dirty or new_session.new or new_session.deleted:
-                        new_session.commit()
-                    new_session.close()
-                    return result
+        last_error = None
+        for attempt in range(1, Config.session_retry_max + 1):
+            new_session = self._session()
+            try:
+                result = query(new_session)
+                if new_session.in_transaction():
+                    new_session.commit()
+                return result
             except Exception as e:
-                if "lock wait timeout" in str(e):
-                    time.sleep(Config.session_retry_interval)
-                    retry_attempt += 1
-                    print(f"Retrying... Attempt {retry_attempt}")
-                else:
-                    error = e
-                    break
-            print(f"An error occurred: {str(e)}")
-            if new_session:
                 new_session.rollback()
+                if "lock wait timeout" not in str(e).lower():
+                    print(f"An error occurred: {str(e)}")
+                    raise
+                last_error = e
+                print(f"Retrying... Attempt {attempt}")
+            finally:
+                # Runs on every path, including the raise above. Without this
+                # the session (and its pooled connection) was leaked on error.
                 new_session.close()
-            raise error
+            time.sleep(Config.session_retry_interval)
+
+        print(f"An error occurred: {str(last_error)}")
+        raise last_error
 
     # channel
     def get_all_channel(self, limit=None, session=None):
@@ -235,6 +255,36 @@ class Context:
                 ).delete()
             else:
                 print(f"Proxy with id {proxy_id} not found.")
+
+        return self._exec(_f, session)
+
+    def soft_delete_proxies(self, proxy_ids, session=None):
+        """Soft-delete many proxies with a handful of bulk statements.
+
+        The per-id path costs one request, one session and four statements per
+        proxy; a ping round produces thousands of them at once.
+        """
+        ids = sorted({int(i) for i in proxy_ids or []})
+        if not ids:
+            return 0
+
+        def _f(sess):
+            now = datetime.now()
+            affected = 0
+            for start in range(0, len(ids), Config.soft_delete_chunk_size):
+                chunk = ids[start : start + Config.soft_delete_chunk_size]
+                sess.query(PingReport).filter(PingReport.proxy_id.in_(chunk)).delete(
+                    synchronize_session=False
+                )
+                sess.query(SpeedReport).filter(SpeedReport.proxy_id.in_(chunk)).delete(
+                    synchronize_session=False
+                )
+                affected += (
+                    sess.query(Proxy)
+                    .filter(Proxy.id.in_(chunk), Proxy.deleted_at.is_(None))
+                    .update({Proxy.deleted_at: now}, synchronize_session=False)
+                )
+            return affected
 
         return self._exec(_f, session)
 

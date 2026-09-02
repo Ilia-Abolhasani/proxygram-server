@@ -28,6 +28,16 @@ class Config:
     session_retry_max = 5
     session_retry_interval = 3
 
+    # database connection pool (shared by the whole process)
+    db_pool_size = int(os.getenv("db_pool_size", "10"))
+    db_max_overflow = int(os.getenv("db_max_overflow", "20"))
+    db_pool_timeout = int(os.getenv("db_pool_timeout", "30"))
+    # below MySQL wait_timeout so the pool never hands out a dead connection
+    db_pool_recycle = int(os.getenv("db_pool_recycle", "280"))
+
+    # ids per statement when soft-deleting a batch of proxies
+    soft_delete_chunk_size = 500
+
     max_report_ping = 20
     max_report_speed = 10
     max_timeouts = 15

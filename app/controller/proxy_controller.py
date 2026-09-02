@@ -24,3 +24,6 @@ class ProxyController:
 
     def soft_delete_proxy(self, agent_id, proxy_id):
         self.context.soft_delete_proxy(proxy_id)
+
+    def soft_delete_proxies(self, agent_id, proxy_ids):
+        return self.context.soft_delete_proxies(proxy_ids)
