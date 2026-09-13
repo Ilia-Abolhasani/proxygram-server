@@ -11,8 +11,8 @@ import app.cron.job_add_csv_report as job_add_csv_report
 
 
 def call_fetch_new_proxies(context, logger_api):
-    # Called directly instead of looping back through HTTP: the round trip
-    # bought nothing and forced /api/job/* to stay unauthenticated.
+    # Called directly instead of looping back through HTTP; the round trip
+    # bought nothing.
     try:
         print("[Scheduler] running fetch_new_proxy")
         job_fetch_new_proxies.start(context, logger_api)

@@ -17,11 +17,8 @@ def request_handler_middleware():
         return None
     _path = request.full_path.rstrip("?")
     if re.match(r"^/api/job(?:/.*)?$", _path):
-        # Job routes carry no agent credentials, so they are only reachable
-        # from the machine itself. Flask listens on 0.0.0.0 and each job spins
-        # up TDLib work, so leaving them open to the network is a free DoS.
-        if request.remote_addr not in ("127.0.0.1", "::1"):
-            abort(403)
+        # Job routes are intentionally open: they are triggered by hand from
+        # outside the machine, so there is no IP or credential check here.
         print("Skipping security check for job route:", request.path)
         return None
 
