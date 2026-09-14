@@ -1,26 +1,38 @@
-from flask import Blueprint, jsonify, current_app
-from app.controller.job_controller import JobController
-import app.cron.job_channel_edit_message as job_channel_edit_message
-
-
 from flask import Blueprint, jsonify, request
+
+from app.cron.job_queue import job_queue
+from app.cron import manager
 
 blueprint = Blueprint("job", __name__)
 
 
+def _submit_response(name):
+    """Queue a job and report what the queue decided.
+
+    These routes used to run the job on the web thread, which is what let a
+    slow TDLib call hang the server. They now return immediately: 202 when the
+    job was queued, 409 when the queue refused it.
+    """
+    force = request.args.get("force", "").lower() == "true"
+    accepted, reason, detail = job_queue.submit(name, force=force)
+    body = {"job": name, "status": reason, "message": detail}
+    if accepted:
+        return jsonify(body), 202
+    if reason == "unknown_job":
+        return jsonify(body), 404
+    return jsonify(body), 409
+
+
 @blueprint.route("/fetch_new_proxy", methods=["GET"])
-def post_log():
-    context = current_app.config["context"]
-    logger_api = current_app.config["logger_api"]
-    job_controller = JobController(context, logger_api)
-    result = job_controller.fetch_new_proxies()
-    return jsonify(result), 200
+def fetch_new_proxy():
+    return _submit_response(manager.FETCH_NEW_PROXIES)
 
 
 @blueprint.route("/edit_channel_message", methods=["GET"])
 def edit_channel_message():
-    context = current_app.config["context"]
-    bot_api = current_app.config["bot_api"]
-    logger_api = current_app.config["logger_api"]
-    job_channel_edit_message.start(context, bot_api, logger_api)
-    return jsonify({"message": "edit_channel_message executed successfully"}), 200
+    return _submit_response(manager.EDIT_CHANNEL_MESSAGE)
+
+
+@blueprint.route("/status", methods=["GET"])
+def status():
+    return jsonify(job_queue.status()), 200

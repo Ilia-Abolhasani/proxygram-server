@@ -1,6 +1,5 @@
 from app.util.Mtproto import extract_all_mtproto, parse_proxy_link
 from app.util.DotDict import DotDict
-from app.cron import job_lock
 from tqdm import tqdm
 import time
 import threading
@@ -114,7 +113,6 @@ def fetch(context, logger_api):
 
 
 def start(context, logger_api):
-    global job_lock
-    with job_lock:
-        print("job_fetch_new_proxies")
-        fetch(context, logger_api)
+    # No lock: the job queue's single worker is what serialises jobs now.
+    print("job_fetch_new_proxies")
+    fetch(context, logger_api)

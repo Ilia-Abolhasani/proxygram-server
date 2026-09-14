@@ -1,34 +1,32 @@
 from app.util.Message import create_message, create_message_iran
-from app.cron import job_lock
 from app.config.config import Config
 from app.action.top_proxies import get_top_proxies
 
 
 def start(context, bot_api, logger_api):
-    global job_lock
-    with job_lock:
-        print("job_channel_add_message")
-        connect_num = context.count_connect_proxies()
-        total = context.count_total_proxies()
-        channels_num = context.count_channels()
+    # No lock: the job queue's single worker is what serialises jobs now.
+    print("job_channel_add_message")
+    connect_num = context.count_connect_proxies()
+    total = context.count_total_proxies()
+    channels_num = context.count_channels()
 
-        # پیام عادی (همه پروکسی‌ها)
-        try:
-            # حذف پیام قبلی
-            prev_setting = context.get_setting("last_sent_message_id")
-            if prev_setting:
-                try:
-                    bot_api.delete_message(int(prev_setting.value))
-                except Exception:
-                    pass
+    # پیام عادی (همه پروکسی‌ها)
+    try:
+        # حذف پیام قبلی
+        prev_setting = context.get_setting("last_sent_message_id")
+        if prev_setting:
+            try:
+                bot_api.delete_message(int(prev_setting.value))
+            except Exception:
+                pass
 
-            proxies = get_top_proxies(context, Config.message_limit_proxy)
-            message = create_message(proxies, connect_num, total, channels_num)
-            result = bot_api.send_message(message)
-            context.add_or_update_setting("last_sent_message_id", result.message_id)
-            print("message 1 sent")
-        except Exception as error:
-            logger_api.announce(error, "Add message to channel job (normal).")
+        proxies = get_top_proxies(context, Config.message_limit_proxy)
+        message = create_message(proxies, connect_num, total, channels_num)
+        result = bot_api.send_message(message)
+        context.add_or_update_setting("last_sent_message_id", result.message_id)
+        print("message 1 sent")
+    except Exception as error:
+        logger_api.announce(error, "Add message to channel job (normal).")
 
         # پیام سرورهای ایران
         # try:

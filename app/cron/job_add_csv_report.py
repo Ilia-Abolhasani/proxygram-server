@@ -1,5 +1,4 @@
 from app.util.Message import create_message
-from app.cron import job_lock
 from app.config.config import Config
 from app.action.csv_report import create_csv_report
 import time
@@ -17,12 +16,11 @@ message_caption = """
 
 
 def start(context, bot_api, logger_api):
-    global job_lock
-    with job_lock:
-        print("job_add_csv_report")
-        try:
-            path = "./report.csv"
-            create_csv_report(context, path, 500)
-            result = bot_api.send_document(path, "proxies_report.csv", message_caption)
-        except Exception as error:
-            logger_api.announce(error, "Add csv report to channel job.")
+    # No lock: the job queue's single worker is what serialises jobs now.
+    print("job_add_csv_report")
+    try:
+        path = "./report.csv"
+        create_csv_report(context, path, 500)
+        result = bot_api.send_document(path, "proxies_report.csv", message_caption)
+    except Exception as error:
+        logger_api.announce(error, "Add csv report to channel job.")
