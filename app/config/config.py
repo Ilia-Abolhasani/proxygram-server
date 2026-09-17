@@ -48,7 +48,7 @@ class Config:
     successful_pings = 5
 
     # proxie selection parameters
-    message_limit_proxy = 10
+    message_limit_proxy = 15
     message_limit_proxy_ir = 20
     max_ping_value = 10000
     exponential_decay = 0.9
