@@ -115,4 +115,4 @@ def fetch(context, logger_api):
 def start(context, logger_api):
     # No lock: the job queue's single worker is what serialises jobs now.
     print("job_fetch_new_proxies")
-    fetch(context, logger_api)
+    return fetch(context, logger_api)

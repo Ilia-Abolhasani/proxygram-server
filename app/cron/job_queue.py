@@ -1,28 +1,39 @@
-"""Single-worker FIFO job queue.
+"""Job queue with two ways in: queued (the scheduler) and immediate (a person).
 
 Every job used to take one shared `job_lock` directly on whatever thread asked
 for it -- the scheduler thread, or a web thread coming in through
 /api/job/*. A slow TDLib call therefore blocked web requests indefinitely, and
 APScheduler's max_instances let repeat firings pile up behind the same lock.
 
-Here one worker thread owns all job execution, so callers never block: they
-submit and get an immediate answer. Two rules keep the queue honest:
+Two paths now:
 
-  * dedupe -- a job already waiting is not queued a second time,
-  * min_interval -- a job that ran recently is skipped rather than run early.
+  * submit()  -- the scheduler's path. The job goes on a FIFO queue and one
+                 worker thread runs it later. Deduped, and gated by
+                 min_interval so a cron firing cannot run a job early.
+  * run_now() -- a person's path, used by /api/job/*. The job runs
+                 immediately and the caller gets its real return value.
+                 min_interval does not apply: that gate paces the scheduler,
+                 it is not there to overrule someone asking by hand.
+
+Both paths share `_inflight`, so one job never runs twice at the same time
+whichever door it came through -- the jobs share one TDLib client and one
+database pool, and two concurrent copies would fight over both.
 """
 
 import threading
 import queue as queue_module
 import time
-from datetime import datetime
 
 
-# Reasons a submit() did not result in a new queue entry.
+# Outcomes reported back to callers.
 SUBMITTED = "submitted"
 ALREADY_QUEUED = "already_queued"
 RUNNING = "running"
 TOO_EARLY = "too_early"
+RAN = "ran"
+FAILED = "failed"
+TIMED_OUT = "timed_out"
+UNKNOWN_JOB = "unknown_job"
 
 
 class Job:
@@ -43,8 +54,7 @@ class Job:
         if self.last_finished_at is None:
             return 0
         now = now if now is not None else time.monotonic()
-        elapsed = now - self.last_finished_at
-        remaining = self.min_interval - elapsed
+        remaining = self.min_interval - (now - self.last_finished_at)
         return remaining if remaining > 0 else 0
 
 
@@ -53,7 +63,8 @@ class JobQueue:
         self._jobs = {}
         self._queue = queue_module.Queue()
         self._pending = set()
-        self._running = None
+        # Jobs executing right now, whichever path started them.
+        self._inflight = set()
         self._state_lock = threading.Lock()
         self._worker = None
         self._stopping = threading.Event()
@@ -70,19 +81,21 @@ class JobQueue:
         )
         self._worker.start()
 
-    def submit(self, name, force=False):
-        """Queue a job. Never blocks on the job itself.
+    # ---- queued path (the scheduler) --------------------------------
 
-        Returns (accepted, reason, detail). `force` bypasses the min_interval
-        gate but still refuses to queue a duplicate.
+    def submit(self, name, force=False):
+        """Put a job on the queue. Never blocks on the job itself.
+
+        Returns (accepted, reason, detail). `force` skips the min_interval
+        gate but still refuses a duplicate.
         """
         with self._state_lock:
             job = self._jobs.get(name)
             if job is None:
-                return False, "unknown_job", f"no job named {name!r}"
+                return False, UNKNOWN_JOB, f"no job named {name!r}"
             if name in self._pending:
                 return False, ALREADY_QUEUED, "already waiting in the queue"
-            if self._running == name:
+            if name in self._inflight:
                 return False, RUNNING, "currently running"
             if not force:
                 wait = job.seconds_until_eligible()
@@ -98,6 +111,52 @@ class JobQueue:
         # without this a forced job would be queued and then skipped there.
         self._queue.put((name, force))
         return True, SUBMITTED, "queued"
+
+    # ---- immediate path (a person) ----------------------------------
+
+    def run_now(self, name):
+        """Run a job right now and return what it returned.
+
+        The job executes on this thread's behalf instead of being handed to
+        the worker, so the caller waits for the real outcome. Refused only if
+        that same job is already running, because a second copy would share
+        the one TDLib client and the one database pool with the first.
+
+        Returns (ok, reason, detail, result).
+        """
+        with self._state_lock:
+            job = self._jobs.get(name)
+            if job is None:
+                return False, UNKNOWN_JOB, f"no job named {name!r}", None
+            if name in self._inflight:
+                return (
+                    False,
+                    RUNNING,
+                    "already running; wait for it to finish",
+                    None,
+                )
+            self._inflight.add(name)
+            job.last_started_at = time.monotonic()
+
+        print(f"[queue] run-now {name}")
+        started = time.monotonic()
+        try:
+            result = self._invoke(job)
+            job.last_error = None
+            job.run_count += 1
+            elapsed = time.monotonic() - started
+            print(f"[queue] run-now done {name} in {elapsed:.1f}s")
+            return True, RAN, f"ran in {elapsed:.1f}s", result
+        except TimeoutError as error:
+            job.last_error = str(error)
+            print(f"[queue] run-now timed out {name}: {error}")
+            return False, TIMED_OUT, str(error), None
+        except Exception as error:
+            job.last_error = str(error)
+            print(f"[queue] run-now failed {name}: {error}")
+            return False, FAILED, str(error), None
+
+    # ---- worker ------------------------------------------------------
 
     def _run_worker(self):
         while not self._stopping.is_set():
@@ -116,72 +175,82 @@ class JobQueue:
             self._pending.discard(name)
             if job is None:
                 return
-            # Re-check here, not only in submit(): a job can sit in the queue
-            # long enough for an earlier run to have satisfied the interval.
+            if name in self._inflight:
+                # A run_now() started it while this entry sat in the queue.
+                print(f"[queue] skip {name}: already running")
+                return
+            # Re-check the interval here, not only in submit(): a job can sit
+            # in the queue long enough for an earlier run to have satisfied it.
             wait = 0 if force else job.seconds_until_eligible()
             if wait > 0:
                 job.skipped_early += 1
                 print(f"[queue] skip {name}: eligible in {int(wait)}s")
                 return
-            self._running = name
+            self._inflight.add(name)
             job.last_started_at = time.monotonic()
 
         print(f"[queue] start {name}")
         started = time.monotonic()
         try:
-            self._call_with_timeout(job)
+            self._invoke(job)
             job.last_error = None
             job.run_count += 1
-            elapsed = time.monotonic() - started
-            print(f"[queue] done {name} in {elapsed:.1f}s")
+            print(f"[queue] done {name} in {time.monotonic() - started:.1f}s")
         except Exception as error:
             job.last_error = str(error)
             print(f"[queue] failed {name}: {error}")
-        finally:
-            with self._state_lock:
-                # Interval counts from the end of a run, so a long job does not
-                # immediately become eligible again.
-                job.last_finished_at = time.monotonic()
-                self._running = None
 
-    def _call_with_timeout(self, job):
-        """Run the job, giving up the wait after job.timeout seconds.
+    # ---- shared execution --------------------------------------------
 
-        The worker stops waiting, but the job's own thread keeps running: a
-        blocked TDLib or MySQL call cannot be killed from outside. The point is
-        that the queue keeps moving instead of wedging behind one stuck job.
+    def _invoke(self, job):
+        """Run job.func with a watchdog, and return its value.
+
+        The function runs on a helper thread so the waiter can give up after
+        job.timeout. Giving up does not stop the function -- a blocked TDLib
+        or MySQL call cannot be killed from outside -- so the job stays marked
+        in-flight until it really ends, and that is deliberate: it is what
+        stops a second copy being started on top of a stuck one.
         """
-        if not job.timeout:
-            job.func()
-            return
-
-        done = threading.Event()
         box = {}
+        done = threading.Event()
 
         def _target():
             try:
-                job.func()
+                box["result"] = job.func()
             except Exception as error:
                 box["error"] = error
             finally:
+                self._finish(job.name)
                 done.set()
 
-        thread = threading.Thread(
+        threading.Thread(
             target=_target, name=f"job-{job.name}", daemon=True
-        )
-        thread.start()
+        ).start()
+
+        # timeout=None waits indefinitely, which is what an unset timeout means.
         if not done.wait(job.timeout):
             raise TimeoutError(
-                f"{job.name} exceeded {job.timeout}s and was abandoned"
+                f"{job.name} exceeded {job.timeout}s and is still running"
             )
         if "error" in box:
             raise box["error"]
+        return box.get("result")
+
+    def _finish(self, name):
+        """Mark a job finished. Runs on the job's own thread, always."""
+        with self._state_lock:
+            job = self._jobs.get(name)
+            if job is not None:
+                # The interval counts from the end of a run, so a long job
+                # does not become eligible again the moment it stops.
+                job.last_finished_at = time.monotonic()
+            self._inflight.discard(name)
 
     def status(self):
         with self._state_lock:
             now = time.monotonic()
             return {
-                "running": self._running,
+                "running": sorted(self._inflight),
                 "pending": sorted(self._pending),
                 "jobs": {
                     name: {
