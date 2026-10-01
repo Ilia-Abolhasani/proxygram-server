@@ -47,7 +47,7 @@ def fetch(context, logger_api):
     telegram_api = _get_telegram_api()
     telegram_api.remove_all_proxies()
     output = []
-    channels = context.get_all_channel(limit=15)
+    channels = context.get_all_channel(limit=25)
     for channel in tqdm(channels):
         try:
             if not channel.chat_id:

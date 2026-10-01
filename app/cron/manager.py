@@ -42,7 +42,7 @@ def start_jobs(context, bot_api, logger_api):
     job_queue.register(
         FETCH_NEW_PROXIES,
         lambda: job_fetch_new_proxies.start(context, logger_api),
-        min_interval=5 * MINUTE,
+        min_interval=3 * MINUTE,
         timeout=10 * MINUTE,
     )
     job_queue.register(
