@@ -12,6 +12,11 @@ from app.config.config import Config
 # corrupt. One client is created lazily and reused for the life of the process.
 _telegram_api = None
 _telegram_api_lock = threading.Lock()
+# Usernames already resolved through search_public_chat on the CURRENT client.
+# Tied to that client's lifetime: TDLib's local chat database lives in the
+# client, so a new client starts knowing nothing and the set must be dropped
+# with it.
+_resolved_chats = set()
 
 
 def _get_telegram_api():
@@ -41,6 +46,30 @@ def stop_telegram_api():
             except Exception as error:
                 print(f"failed to stop TDLib client: {error}")
             _telegram_api = None
+            # The next client gets an empty local chat database, so anything
+            # resolved against the old one no longer counts as resolved.
+            _resolved_chats.clear()
+
+
+def _resolve_chat(telegram_api, channel):
+    """Make sure TDLib knows this chat before we act on it.
+
+    TDLib only serves channel_history()/view_messages() for chats already in
+    its local database, and search_public_chat() is what puts one there. While
+    a fresh Telegram_API was built per run, the login that came with it
+    populated that database as a side effect; with one long-lived client
+    nothing does, so without this the seen-marking below fails silently.
+
+    Resolving costs a network round trip, so each username is only resolved
+    once per client rather than once per run.
+    """
+    if not channel.is_public or not channel.username:
+        return
+    if channel.username in _resolved_chats:
+        return
+    chat_id = telegram_api.search_public_chat(channel.username)
+    if chat_id:
+        _resolved_chats.add(channel.username)
 
 
 def fetch(context, logger_api):
@@ -58,11 +87,12 @@ def fetch(context, logger_api):
                             f"public channel username '{channel.username}' not found!"
                         )
                     channel.chat_id = chat_id
+                    # Resolved right here, so _resolve_chat below need not
+                    # spend a second round trip on the same username.
+                    _resolved_chats.add(channel.username)
                 else:
                     raise Exception("private channel without chat_id!")
-            if channel.is_public:
-                pass
-                # telegram_api.search_public_chat(channel.username)
+            _resolve_chat(telegram_api, channel)
             messages, last_message_id = telegram_api.channel_history(
                 int(channel.chat_id), 500, channel.last_id
             )
@@ -71,7 +101,10 @@ def fetch(context, logger_api):
                     int(channel.chat_id), [last_message_id]
                 )
                 if res.error:
-                    print(res.error_info)
+                    # Printed only, this is how the seen-marking managed to
+                    # stay broken unnoticed; name the channel at least.
+                    name = channel.username if channel.is_public else channel.name
+                    print(f"view_messages failed for {name}: {res.error_info}")
             proxy_linkes = []
             # get messages
             for message in messages:
